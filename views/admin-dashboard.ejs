@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,9 +33,9 @@
   <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Admin Dashboard</h1>
     
-    <!-- Filters and Reload Button -->
+    <!-- Filters and Buttons -->
     <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-      <div class="flex gap-4">
+      <div class="flex gap-4 flex-wrap">
         <select id="batchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="all">All Batches</option>
           <% batches.forEach(batch => { %>
@@ -47,10 +48,37 @@
             <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
           <% }) %>
         </select>
+        <input type="date" id="dateFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="<%= new Date().toISOString().split('T')[0] %>">
       </div>
-      <button onclick="window.location.reload()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-        Reload
-      </button>
+      <div class="flex gap-4">
+        <button onclick="fetchMealHistory()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+          Refresh Data
+        </button>
+        <button onclick="downloadMealHistoryExcel()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+          Download as Excel
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Meal History Table -->
+    <div id="mealHistoryContainer" class="overflow-x-auto bg-white shadow-md rounded-lg mb-6">
+      <table id="mealHistoryTable" class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Roll</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meal</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Additional Items</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lunch Served</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinner Served</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Daily Meal Count</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Meals</th>
+          </tr>
+        </thead>
+        <tbody id="mealHistoryBody" class="bg-white divide-y divide-gray-200">
+          <!-- Data will be populated via JavaScript -->
+        </tbody>
+      </table>
     </div>
 
     <!-- Users Table -->
@@ -119,25 +147,128 @@
   </div>
 
   <script>
-    // Filter handling
+    // Filter handling for user table
     const batchFilter = document.getElementById('batchFilter');
     const genderFilter = document.getElementById('genderFilter');
     [batchFilter, genderFilter].forEach(filter => {
       filter.addEventListener('change', () => {
         const batchValue = batchFilter.value;
         const genderValue = genderFilter.value;
-        console.log('Filter selected:', { batch: batchValue, gender: genderValue }); // Debug filter values
+        console.log('Filter selected:', { batch: batchValue, gender: genderValue });
         const params = new URLSearchParams();
         if (batchValue !== 'all') params.append('batch', batchValue);
         if (genderValue !== 'all') params.append('gender', genderValue);
-        console.log('URL params:', params.toString()); // Debug URL
+        console.log('URL params:', params.toString());
         window.location.href = `/admin/dashboard?${params.toString()}`;
       });
     });
 
+    // Fetch meal history data
+    async function fetchMealHistory() {
+      const batchValue = batchFilter.value;
+      const genderValue = genderFilter.value;
+      const dateValue = document.getElementById('dateFilter').value;
+      console.log('Fetching meal history with:', { batch: batchValue, gender: genderValue, date: dateValue });
+      if (!dateValue) {
+        alert('Please select a date for the report');
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (batchValue !== 'all') params.append('batch', batchValue);
+      if (genderValue !== 'all') params.append('gender', genderValue);
+      params.append('date', dateValue);
+
+      try {
+        const response = await fetch(`/api/meal-history?${params.toString()}`);
+        const data = await response.json();
+        console.log('Meal history data:', data);
+        if (response.ok) {
+          renderMealHistoryTable(data);
+        } else {
+          alert(data.error || 'Failed to fetch meal history');
+          document.getElementById('mealHistoryBody').innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-500">No data found</td></tr>`;
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        alert('Error fetching meal history');
+        document.getElementById('mealHistoryBody').innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-500">Error loading data</td></tr>`;
+      }
+    }
+
+    // Render meal history table
+    function renderMealHistoryTable(data) {
+      const tbody = document.getElementById('mealHistoryBody');
+      tbody.innerHTML = '';
+
+      // User rows
+      data.users.forEach(user => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.classRoll}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.name}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.meal}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.additionalItems || '-'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.lunchServed ? 'Yes' : 'No'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.dinnerServed ? 'Yes' : 'No'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.dailyMealCount}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.totalMealCount}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      // Total row
+      const totalRow = document.createElement('tr');
+      totalRow.className = 'bg-gray-100 font-semibold';
+      totalRow.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Total (Cumulative)</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.totalMeals}</td>
+      `;
+      tbody.appendChild(totalRow);
+
+      // Summary row
+      const summaryRow = document.createElement('tr');
+      summaryRow.className = 'bg-gray-100 font-semibold';
+      summaryRow.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Summary (${data.date})</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.additionalItems}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.lunchServed}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.dinnerServed}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.dailyMealCount}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
+      `;
+      tbody.appendChild(summaryRow);
+    }
+
+    // Download meal history as Excel
+    function downloadMealHistoryExcel() {
+      const batchValue = batchFilter.value;
+      const genderValue = genderFilter.value;
+      const dateValue = document.getElementById('dateFilter').value;
+      console.log('Downloading meal history with:', { batch: batchValue, gender: genderValue, date: dateValue });
+      if (!dateValue) {
+        alert('Please select a date for the report');
+        return;
+      }
+      const params = new URLSearchParams();
+      if (batchValue !== 'all') params.append('batch', batchValue);
+      if (genderValue !== 'all') params.append('gender', genderValue);
+      params.append('date', dateValue);
+      window.location.href = `/admin/export-meal-history?${params.toString()}`;
+    }
+
     // Modal handling
     function openEditModal(userId, deposit, totalMealCount, name) {
-      console.log('Opening modal with:', { userId, deposit, totalMealCount, name }); // Debug modal data
+      console.log('Opening modal with:', { userId, deposit, totalMealCount, name });
       document.getElementById('userId').value = userId;
       document.getElementById('deposit').value = deposit;
       document.getElementById('totalMealCount').value = totalMealCount;
@@ -157,9 +288,8 @@
       const userId = document.getElementById('userId').value;
       const deposit = document.getElementById('deposit').value;
       const totalMealCount = document.getElementById('totalMealCount').value;
-      console.log('Submitting edit:', { userId, deposit, totalMealCount }); // Debug form data
+      console.log('Submitting edit:', { userId, deposit, totalMealCount });
 
-      // Client-side validation
       if (deposit < 0 || totalMealCount < 0) {
         alert('Deposit and Total Meal Count cannot be negative');
         return;
@@ -172,7 +302,7 @@
           body: JSON.stringify({ deposit: Number(deposit), totalMealCount: Number(totalMealCount) }),
         });
         const result = await response.json();
-        console.log('Update response:', result); // Debug response
+        console.log('Update response:', result);
         if (response.ok) {
           alert(result.message);
           window.location.reload();
@@ -185,6 +315,15 @@
       }
       closeEditModal();
     });
+
+    // Auto-fetch meal history on page load
+    document.addEventListener('DOMContentLoaded', fetchMealHistory);
+
+    // Auto-fetch on filter change
+    [batchFilter, genderFilter, document.getElementById('dateFilter')].forEach(filter => {
+      filter.addEventListener('change', fetchMealHistory);
+    });
   </script>
 </body>
 </html>
+```

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const ExcelJS = require('exceljs');
@@ -10,13 +11,13 @@ const rateLimit = require('express-rate-limit');
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 3000; // Render overrides PORT
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://askpeal121:Peal1234@cluster0.teofx.mongodb.net/mealPlanner?retryWrites=true&w=majority';
+const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://askpeal121:<YOUR_PASSWORD>@cluster0.teofx.mongodb.net/mealPlanner?retryWrites=true&w=majority';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6';
 
 // Validate environment variables
-if (!MONGODB_URI) {
-  console.error('FATAL: MONGODB_URI is not set.');
+if (!MONGODB_URI.includes('<YOUR_PASSWORD>') && !process.env.MONGODB_URI) {
+  console.error('FATAL: MONGODB_URI is not set properly. Set it in environment variables.');
   process.exit(1);
 }
 if (SESSION_SECRET === 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6' && process.env.NODE_ENV === 'production') {
@@ -39,6 +40,7 @@ async function connectMongoDB() {
 connectMongoDB();
 
 // Middleware Setup
+app.set('trust proxy', 1); // Trust Render's proxy
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -57,9 +59,9 @@ app.use(session({
     ttl: 24 * 60 * 60, // 24 hours
   }).on('error', (err) => console.error('MongoStore error:', err.message)),
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.RENDER === 'true' || process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 24 * 60 * 60 * 1000,
   },
 }));
 app.set('view engine', 'ejs');
@@ -140,21 +142,28 @@ cron.schedule('0 0 * * *', async () => {
     const users = await User.find().lean();
     for (const user of users) {
       let mealHistory = await MealHistory.findOne({ userId: user._id, date: today }).lean();
+      let newMealCount = 0;
       if (!mealHistory) {
         const previousMeal = await MealHistory.findOne({ userId: user._id, date: yesterday }).lean();
+        newMealCount = previousMeal ? (previousMeal.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(previousMeal.meal) ? 1 : 0) : 0;
         mealHistory = await new MealHistory({
           userId: user._id,
           date: today,
           meal: previousMeal?.meal || 'Off',
           additionalItems: previousMeal?.additionalItems || [],
-          dailyMealCount: previousMeal ? (previousMeal.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(previousMeal.meal) ? 1 : 0) : 0,
+          dailyMealCount: newMealCount,
           lunchServed: false,
           dinnerServed: false,
         }).save();
+        await User.updateOne({ _id: user._id }, { $inc: { totalMealCount: newMealCount } });
+      } else {
+        newMealCount = mealHistory.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(mealHistory.meal) ? 1 : 0;
+        const oldMealCount = mealHistory.dailyMealCount || 0;
+        await MealHistory.updateOne({ _id: mealHistory._id }, { dailyMealCount: newMealCount });
+        if (newMealCount !== oldMealCount) {
+          await User.updateOne({ _id: user._id }, { $inc: { totalMealCount: newMealCount - oldMealCount } });
+        }
       }
-      const mealCount = mealHistory.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(mealHistory.meal) ? 1 : 0;
-      await MealHistory.updateOne({ _id: mealHistory._id }, { dailyMealCount: mealCount });
-      await User.updateOne({ _id: user._id }, { $inc: { totalMealCount: mealCount - mealHistory.dailyMealCount } });
     }
     console.log('Daily meal update completed');
   } catch (error) {
@@ -222,6 +231,91 @@ app.get('/api/meal-history', requireLogin, async (req, res) => {
   } catch (error) {
     console.error('Meal history error:', error.message);
     res.status(500).json({ error: 'Failed to fetch meal history' });
+  }
+});
+
+app.get('/api/meal-history/admin', requireAdmin, async (req, res) => {
+  try {
+    const { batch, gender, date } = req.query;
+    if (!date) {
+      console.error('Date parameter missing');
+      return res.status(400).json({ error: 'Date parameter is required' });
+    }
+
+    const selectedDate = new Date(date);
+    if (isNaN(selectedDate.getTime())) {
+      console.error(`Invalid date: ${date}`);
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+    selectedDate.setHours(0, 0, 0, 0);
+
+    let query = {};
+    if (batch && batch !== 'all') query.batch = batch;
+    if (gender && gender !== 'all') query.gender = gender;
+
+    const users = await User.find(query).sort({ batch: 1, classRoll: 1 }).lean();
+    if (!users.length) {
+      console.error(`No users found for batch: ${batch || 'all'}, gender: ${gender || 'all'}`);
+      return res.status(404).json({ error: 'No users found' });
+    }
+
+    const mealHistories = await MealHistory.find({
+      userId: { $in: users.map(u => u._id) },
+      date: selectedDate,
+    }).lean();
+
+    let totalLunch = 0;
+    let totalDinner = 0;
+    let totalDailyMealCount = 0;
+    let totalMealsSum = 0;
+    const additionalItemsCount = {};
+
+    const userData = users.map(user => {
+      const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()) || {
+        meal: 'Off',
+        additionalItems: [],
+        lunchServed: false,
+        dinnerServed: false,
+        dailyMealCount: 0,
+      };
+      totalMealsSum += user.totalMealCount || 0;
+      totalLunch += mealHistory.lunchServed ? 1 : 0;
+      totalDinner += mealHistory.dinnerServed ? 1 : 0;
+      totalDailyMealCount += mealHistory.dailyMealCount || 0;
+      mealHistory.additionalItems.forEach(item => {
+        additionalItemsCount[item] = (additionalItemsCount[item] || 0) + 1;
+      });
+
+      return {
+        classRoll: user.classRoll,
+        name: user.name,
+        meal: mealHistory.meal,
+        additionalItems: mealHistory.additionalItems.join(', ') || '-',
+        lunchServed: mealHistory.lunchServed,
+        dinnerServed: mealHistory.dinnerServed,
+        dailyMealCount: mealHistory.dailyMealCount || 0,
+        totalMealCount: user.totalMealCount || 0,
+      };
+    });
+
+    const additionalItemsSummary = Object.entries(additionalItemsCount)
+      .map(([item, count]) => `${item}: ${count}`)
+      .join(', ') || '-';
+
+    res.json({
+      users: userData,
+      date: selectedDate.toLocaleDateString('en-GB'),
+      totals: {
+        lunchServed: totalLunch,
+        dinnerServed: totalDinner,
+        dailyMealCount: totalDailyMealCount,
+        totalMeals: totalMealsSum,
+        additionalItems: additionalItemsSummary,
+      },
+    });
+  } catch (error) {
+    console.error('Admin meal history API error:', { message: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Error fetching meal history' });
   }
 });
 
@@ -429,15 +523,17 @@ app.get('/staff/serving', requireStaff, async (req, res) => {
       for (const user of users) {
         if (!mealHistories.find(mh => mh.userId.toString() === user._id.toString())) {
           const previousMeal = await MealHistory.findOne({ userId: user._id, date: { $lt: selectedDate } }).sort({ date: -1 }).lean();
+          const newMealCount = previousMeal ? (previousMeal.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(previousMeal.meal) ? 1 : 0) : 0;
           await new MealHistory({
             userId: user._id,
             date: selectedDate,
             meal: previousMeal?.meal || 'Off',
             additionalItems: previousMeal?.additionalItems || [],
-            dailyMealCount: previousMeal ? (previousMeal.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(previousMeal.meal) ? 1 : 0) : 0,
+            dailyMealCount: newMealCount,
             lunchServed: false,
             dinnerServed: false,
           }).save();
+          await User.updateOne({ _id: user._id }, { $inc: { totalMealCount: newMealCount } });
         }
       }
       mealHistories = await MealHistory.find({ date: selectedDate }).lean();
@@ -472,47 +568,69 @@ app.get('/staff/serving', requireStaff, async (req, res) => {
 app.post('/api/meal/serve/:userId', requireStaff, async (req, res) => {
   const { userId } = req.params;
   const { mealType, date } = req.body;
+  console.log(`POST /api/meal/serve/${userId}`, { mealType, date, sessionStaff: !!req.session.staff });
   try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.log(`Invalid userId: ${userId}`);
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
     if (!['Lunch', 'Dinner'].includes(mealType)) {
+      console.log(`Invalid mealType: ${mealType}`);
       return res.status(400).json({ error: 'Invalid meal type' });
     }
     const selectedDate = new Date(date);
+    if (isNaN(selectedDate.getTime())) {
+      console.log(`Invalid date: ${date}`);
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
     selectedDate.setHours(0, 0, 0, 0);
+    console.log(`Normalized date: ${selectedDate.toISOString()}`);
     let mealHistory = await MealHistory.findOne({ userId, date: selectedDate }).lean();
     if (!mealHistory) {
+      console.log(`No meal history found for user ${userId} on ${selectedDate}`);
       const user = await User.findById(userId).lean();
       if (!user) {
+        console.log(`User not found: ${userId}`);
         return res.status(404).json({ error: 'User not found' });
       }
       const previousMeal = await MealHistory.findOne({ userId, date: { $lt: selectedDate } }).sort({ date: -1 }).lean();
+      const newMealCount = previousMeal ? (previousMeal.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(previousMeal.meal) ? 1 : 0) : 0;
       mealHistory = await new MealHistory({
         userId,
         date: selectedDate,
         meal: previousMeal?.meal || 'Off',
         additionalItems: previousMeal?.additionalItems || [],
-        dailyMealCount: previousMeal ? (previousMeal.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(previousMeal.meal) ? 1 : 0) : 0,
+        dailyMealCount: newMealCount,
         lunchServed: false,
         dinnerServed: false,
       }).save();
+      console.log(`Created meal history: ${mealHistory._id}`);
+      await User.updateOne({ _id: userId }, { $inc: { totalMealCount: newMealCount } });
     }
+    console.log(`Meal history: ${JSON.stringify(mealHistory)}`);
     if (mealHistory.meal === 'Off') {
+      console.log(`Meal is Off for user ${userId}`);
       return res.status(400).json({ error: 'Cannot serve meal for Off status' });
     }
     if ((mealType === 'Lunch' && mealHistory.lunchServed) || (mealType === 'Dinner' && mealHistory.dinnerServed)) {
+      console.log(`${mealType} already served for user ${userId}`);
       return res.status(400).json({ error: `${mealType} already served` });
     }
     if (mealType === 'Lunch' && !['Lunch', 'Both'].includes(mealHistory.meal)) {
+      console.log(`Lunch not enabled for user ${userId}, meal: ${mealHistory.meal}`);
       return res.status(400).json({ error: 'Lunch not enabled' });
     }
     if (mealType === 'Dinner' && !['Dinner', 'Both'].includes(mealHistory.meal)) {
+      console.log(`Dinner not enabled for user ${userId}, meal: ${mealHistory.meal}`);
       return res.status(400).json({ error: 'Dinner not enabled' });
     }
     await MealHistory.updateOne({ _id: mealHistory._id }, {
       [mealType === 'Lunch' ? 'lunchServed' : 'dinnerServed']: true,
     });
+    console.log(`${mealType} served for user ${userId}`);
     res.json({ message: `${mealType} served successfully` });
   } catch (error) {
-    console.error('Serve meal error:', error.message);
+    console.error('Serve meal error:', { message: error.message, stack: error.stack });
     res.status(500).json({ error: 'Failed to serve meal' });
   }
 });
@@ -715,16 +833,32 @@ app.get('/export-excel', requireLogin, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId).lean();
     if (!user) {
+      console.error(`User not found: ${req.session.userId}`);
       return res.status(404).send('User not found');
     }
+
+    const { date } = req.query;
+    const selectedDate = date ? new Date(date) : new Date();
+    selectedDate.setHours(0, 0, 0, 0);
+
     const users = await User.find({ batch: user.batch, gender: user.gender }).sort({ classRoll: 1 }).lean();
-    const mealHistories = await MealHistory.find({ userId: { $in: users.map(u => u._id) } }).lean();
+    if (!users.length) {
+      console.error(`No users found for batch: ${user.batch}, gender: ${user.gender}`);
+      return res.status(404).send('No users found');
+    }
+
+    const mealHistories = await MealHistory.find({
+      userId: { $in: users.map(u => u._id) },
+      date: selectedDate,
+    }).lean();
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(`MUL-B${user.batch}-${user.gender.charAt(0)}`);
     worksheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 7 }];
     worksheet.properties.defaultRowHeight = 20;
 
-    worksheet.mergeCells('A1:G1');
+    // Header
+    worksheet.mergeCells('A1:H1');
     worksheet.getCell('A1').value = 'Satkhira Medical College';
     worksheet.getCell('A1').font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
     worksheet.getCell('A1').fill = {
@@ -735,7 +869,7 @@ app.get('/export-excel', requireLogin, async (req, res) => {
     worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
     worksheet.getRow(1).height = 50;
 
-    worksheet.mergeCells('A2:G2');
+    worksheet.mergeCells('A2:H2');
     worksheet.getCell('A2').value = 'Meal Update List';
     worksheet.getCell('A2').font = { name: 'Arial', size: 14, bold: true };
     worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
@@ -743,14 +877,15 @@ app.get('/export-excel', requireLogin, async (req, res) => {
 
     worksheet.getCell('A3').value = `Batch: ${user.batch}`;
     worksheet.getCell('A4').value = `Gender: ${user.gender}`;
-    worksheet.getCell('A5').value = `Date: ${new Date().toLocaleDateString('en-GB')}`;
+    worksheet.getCell('A5').value = `Date: ${selectedDate.toLocaleDateString('en-GB')}`;
     worksheet.getCell('A6').value = `Generated: ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}`;
     ['A3', 'A4', 'A5', 'A6'].forEach(cell => {
       worksheet.getCell(cell).font = { name: 'Arial', size: 12, bold: true };
       worksheet.getCell(cell).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
     });
 
-    worksheet.getRow(7).values = ['Class Roll', 'Name', 'Meal', 'Additional Items', 'Lunch Served', 'Dinner Served', 'Total Meal Count'];
+    // Table Headers
+    worksheet.getRow(7).values = ['Class Roll', 'Name', 'Meal', 'Additional Items', 'Lunch Served', 'Dinner Served', 'Daily Meal Count', 'Total'];
     worksheet.getRow(7).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     worksheet.getRow(7).fill = {
       type: 'gradient',
@@ -766,21 +901,43 @@ app.get('/export-excel', requireLogin, async (req, res) => {
       { key: 'additionalItems', width: 25 },
       { key: 'lunchServed', width: 15 },
       { key: 'dinnerServed', width: 15 },
-      { key: 'totalMealCount', width: 18 },
+      { key: 'dailyMealCount', width: 15 },
+      { key: 'total', width: 18 },
     ];
 
+    // Data Rows
     let rowIndex = 8;
+    let totalMealsSum = 0;
+    let totalLunch = 0;
+    let totalDinner = 0;
+    let totalDailyMealCount = 0;
+    const additionalItemsCount = {};
+
     for (const user of users) {
-      const userMeals = mealHistories.filter(mh => mh.userId.toString() === user._id.toString());
-      const latestMeal = userMeals.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()) || {
+        meal: 'Off',
+        additionalItems: [],
+        lunchServed: false,
+        dinnerServed: false,
+        dailyMealCount: 0,
+      };
+      totalMealsSum += user.totalMealCount || 0;
+      totalLunch += mealHistory.lunchServed ? 1 : 0;
+      totalDinner += mealHistory.dinnerServed ? 1 : 0;
+      totalDailyMealCount += mealHistory.dailyMealCount || 0;
+      mealHistory.additionalItems.forEach(item => {
+        additionalItemsCount[item] = (additionalItemsCount[item] || 0) + 1;
+      });
+
       const row = worksheet.addRow({
         classRoll: user.classRoll,
         name: user.name,
-        meal: latestMeal?.meal || 'Off',
-        additionalItems: latestMeal?.additionalItems?.join(', ') || '-',
-        lunchServed: latestMeal?.lunchServed ? 'Yes' : 'No',
-        dinnerServed: latestMeal?.dinnerServed ? 'Yes' : 'No',
-        totalMealCount: user.totalMealCount,
+        meal: mealHistory.meal,
+        additionalItems: mealHistory.additionalItems.join(', ') || '-',
+        lunchServed: mealHistory.lunchServed ? 'Yes' : 'No',
+        dinnerServed: mealHistory.dinnerServed ? 'Yes' : 'No',
+        dailyMealCount: mealHistory.dailyMealCount || 0,
+        total: user.totalMealCount,
       });
       row.font = { name: 'Arial', size: 10 };
       row.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -790,14 +947,230 @@ app.get('/export-excel', requireLogin, async (req, res) => {
       rowIndex++;
     }
 
-    const fileName = `Meal_Update_B${user.batch}_${user.gender}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    // Total Row for totalMealCount
+    const totalRow = worksheet.addRow({
+      name: 'Total (Cumulative)',
+      total: totalMealsSum,
+    });
+    totalRow.font = { name: 'Arial', size: 10, bold: true };
+    totalRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' },
+    };
+    totalRow.alignment = { vertical: 'middle', horizontal: 'left' };
+    totalRow.eachCell(cell => {
+      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+    });
+    rowIndex++;
+
+    // Summary Row for Lunch, Dinner, Daily Meal Count, and Additional Items
+    const additionalItemsSummary = Object.entries(additionalItemsCount)
+      .map(([item, count]) => `${item}: ${count}`)
+      .join(', ') || '-';
+    const summaryRow = worksheet.addRow({
+      name: 'Summary (Daily)',
+      lunchServed: totalLunch,
+      dinnerServed: totalDinner,
+      dailyMealCount: totalDailyMealCount,
+      additionalItems: additionalItemsSummary,
+    });
+    summaryRow.font = { name: 'Arial', size: 10, bold: true };
+    summaryRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' },
+    };
+    summaryRow.alignment = { vertical: 'middle', horizontal: 'left' };
+    summaryRow.eachCell(cell => {
+      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+    });
+
+    const fileName = `Meal_Update_B${user.batch}_${user.gender}_${selectedDate.toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     await workbook.xlsx.write(res);
     res.end();
+    console.log(`Excel exported: ${fileName}, Total Meals: ${totalMealsSum}, Lunch: ${totalLunch}, Dinner: ${totalDinner}, Daily: ${totalDailyMealCount}, Additional Items: ${additionalItemsSummary}`);
   } catch (error) {
-    console.error('Excel export error:', error.message);
+    console.error('Excel export error:', { message: error.message, stack: error.stack });
     res.status(500).send('Error exporting Excel');
+  }
+});
+
+app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
+  try {
+    const { batch, gender, date } = req.query;
+    if (!date) {
+      console.error('Date parameter missing');
+      return res.status(400).send('Date parameter is required');
+    }
+
+    const selectedDate = new Date(date);
+    if (isNaN(selectedDate.getTime())) {
+      console.error(`Invalid date: ${date}`);
+      return res.status(400).send('Invalid date format');
+    }
+    selectedDate.setHours(0, 0, 0, 0);
+
+    let query = {};
+    if (batch && batch !== 'all') query.batch = batch;
+    if (gender && gender !== 'all') query.gender = gender;
+
+    const users = await User.find(query).sort({ batch: 1, classRoll: 1 }).lean();
+    if (!users.length) {
+      console.error(`No users found for batch: ${batch || 'all'}, gender: ${gender || 'all'}`);
+      return res.status(404).send('No users found');
+    }
+
+    const mealHistories = await MealHistory.find({
+      userId: { $in: users.map(u => u._id) },
+      date: selectedDate,
+    }).lean();
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(`Meal_History_B${batch || 'All'}_${gender || 'All'}`);
+    worksheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 7 }];
+    worksheet.properties.defaultRowHeight = 20;
+
+    // Header
+    worksheet.mergeCells('A1:H1');
+    worksheet.getCell('A1').value = 'Satkhira Medical College';
+    worksheet.getCell('A1').font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+    worksheet.getCell('A1').fill = {
+      type: 'gradient',
+      gradient: 'linear',
+      stops: [{ position: 0, color: { argb: 'FF2E8B57' } }, { position: 1, color: { argb: 'FF3CB371' } }],
+    };
+    worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(1).height = 50;
+
+    worksheet.mergeCells('A2:H2');
+    worksheet.getCell('A2').value = 'Meal History Report';
+    worksheet.getCell('A2').font = { name: 'Arial', size: 14, bold: true };
+    worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(2).height = 30;
+
+    worksheet.getCell('A3').value = `Batch: ${batch || 'All'}`;
+    worksheet.getCell('A4').value = `Gender: ${gender || 'All'}`;
+    worksheet.getCell('A5').value = `Date: ${selectedDate.toLocaleDateString('en-GB')}`;
+    worksheet.getCell('A6').value = `Generated: ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}`;
+    ['A3', 'A4', 'A5', 'A6'].forEach(cell => {
+      worksheet.getCell(cell).font = { name: 'Arial', size: 12, bold: true };
+      worksheet.getCell(cell).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
+    });
+
+    // Table Headers
+    worksheet.getRow(7).values = ['Class Roll', 'Name', 'Meal', 'Additional Items', 'Lunch Served', 'Dinner Served', 'Daily Meal Count', 'Total Meals'];
+    worksheet.getRow(7).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    worksheet.getRow(7).fill = {
+      type: 'gradient',
+      gradient: 'linear',
+      stops: [{ position: 0, color: { argb: 'FF4682B4' } }, { position: 1, color: { argb: 'FF6495ED' } }],
+    };
+    worksheet.getRow(7).alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(7).height = 25;
+    worksheet.columns = [
+      { key: 'classRoll', width: 12 },
+      { key: 'name', width: 30 },
+      { key: 'meal', width: 15 },
+      { key: 'additionalItems', width: 25 },
+      { key: 'lunchServed', width: 15 },
+      { key: 'dinnerServed', width: 15 },
+      { key: 'dailyMealCount', width: 15 },
+      { key: 'totalMeals', width: 18 },
+    ];
+
+    // Data Rows
+    let rowIndex = 8;
+    let totalLunch = 0;
+    let totalDinner = 0;
+    let totalDailyMealCount = 0;
+    let totalMealsSum = 0;
+    const additionalItemsCount = {};
+
+    for (const user of users) {
+      const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()) || {
+        meal: 'Off',
+        additionalItems: [],
+        lunchServed: false,
+        dinnerServed: false,
+        dailyMealCount: 0,
+      };
+      totalMealsSum += user.totalMealCount || 0;
+      totalLunch += mealHistory.lunchServed ? 1 : 0;
+      totalDinner += mealHistory.dinnerServed ? 1 : 0;
+      totalDailyMealCount += mealHistory.dailyMealCount || 0;
+      mealHistory.additionalItems.forEach(item => {
+        additionalItemsCount[item] = (additionalItemsCount[item] || 0) + 1;
+      });
+
+      const row = worksheet.addRow({
+        classRoll: user.classRoll,
+        name: user.name,
+        meal: mealHistory.meal,
+        additionalItems: mealHistory.additionalItems.join(', ') || '-',
+        lunchServed: mealHistory.lunchServed ? 'Yes' : 'No',
+        dinnerServed: mealHistory.dinnerServed ? 'Yes' : 'No',
+        dailyMealCount: mealHistory.dailyMealCount || 0,
+        totalMeals: user.totalMealCount,
+      });
+      row.font = { name: 'Arial', size: 10 };
+      row.alignment = { vertical: 'middle', horizontal: 'left' };
+      row.eachCell(cell => {
+        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+      });
+      rowIndex++;
+    }
+
+    // Total Row (Cumulative)
+    const totalRow = worksheet.addRow({
+      name: 'Total (Cumulative)',
+      totalMeals: totalMealsSum,
+    });
+    totalRow.font = { name: 'Arial', size: 10, bold: true };
+    totalRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' },
+    };
+    totalRow.alignment = { vertical: 'middle', horizontal: 'left' };
+    totalRow.eachCell(cell => {
+      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+    });
+    rowIndex++;
+
+    // Summary Row (Selected Date)
+    const additionalItemsSummary = Object.entries(additionalItemsCount)
+      .map(([item, count]) => `${item}: ${count}`)
+      .join(', ') || '-';
+    const summaryRow = worksheet.addRow({
+      name: `Summary (${selectedDate.toLocaleDateString('en-GB')})`,
+      lunchServed: totalLunch,
+      dinnerServed: totalDinner,
+      dailyMealCount: totalDailyMealCount,
+      additionalItems: additionalItemsSummary,
+    });
+    summaryRow.font = { name: 'Arial', size: 10, bold: true };
+    summaryRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' },
+    };
+    summaryRow.alignment = { vertical: 'middle', horizontal: 'left' };
+    summaryRow.eachCell(cell => {
+      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+    });
+
+    const fileName = `Meal_History_B${batch || 'All'}_${gender || 'All'}_${selectedDate.toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    await workbook.xlsx.write(res);
+    res.end();
+    console.log(`Meal history Excel exported: ${fileName}, Total Meals: ${totalMealsSum}, Lunch: ${totalLunch}, Dinner: ${totalDinner}, Daily: ${totalDailyMealCount}, Additional Items: ${additionalItemsSummary}`);
+  } catch (error) {
+    console.error('Meal history export error:', { message: error.message, stack: error.stack });
+    res.status(500).send('Error exporting meal history Excel');
   }
 });
 

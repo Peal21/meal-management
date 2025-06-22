@@ -91,17 +91,11 @@
     </style>
 </head>
 <body>
-    <!-- Audio tags commented out temporarily to avoid errors -->
-    <!-- <audio id="clickSound" src="/sounds/button-click.mp3"></audio>
-    <audio id="successSound" src="/sounds/success.mp3"></audio>
-    <audio id="popSound" src="/sounds/pop.mp3"></audio>
-    <audio id="errorSound" src="/sounds/error.mp3"></audio> -->
-
     <header class="header py-4">
         <div class="container mx-auto px-4 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <span class="material-icons text-3xl text-blue-600 animate-spin-slow">restaurant_menu</span>
-                <h1 class="text-2xl font-semibold text-gray-800">Satkhira Medical College Staff Serving</h1>
+                <span class="material-icons text-3xl text-blue-600">restaurant_menu</span>
+                <h1 class="text-2xl font-semibold text-gray-800">Staff Serving - Satkhira Medical College</h1>
             </div>
             <a href="/logout" class="btn bg-red-500 text-white px-5 py-2 rounded-md text-sm hover:bg-red-600">Logout</a>
         </div>
@@ -116,7 +110,7 @@
                 <div class="flex-1 min-w-[160px]">
                     <select name="batch" class="select w-full">
                         <option value="all">All Batches</option>
-                        <% batches.forEach(batch => { %>
+                        <% ['09', '10', '11', '12', '13'].forEach(batch => { %>
                             <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
                         <% }) %>
                     </select>
@@ -124,7 +118,7 @@
                 <div class="flex-1 min-w-[160px]">
                     <select name="gender" class="select w-full">
                         <option value="all">All Genders</option>
-                        <% genders.forEach(gender => { %>
+                        <% ['Male', 'Female'].forEach(gender => { %>
                             <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
                         <% }) %>
                     </select>
@@ -138,7 +132,7 @@
             </form>
         </div>
 
-        <div class="card p-6 mb-8 animate-card" id="extraMealSection">
+        <div class="card p-6 mb-8 animate-card">
             <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                 <span class="material-icons mr-2">add_circle</span> Enable Extra Meals
             </h2>
@@ -146,7 +140,9 @@
             <div class="search-container mb-4">
                 <input type="text" id="userSearch" class="search-input w-full" placeholder="Search by name..." oninput="searchUsers()">
             </div>
-            <div class="off-users-list mb-4" id="offUsersList"></div>
+            <div class="off-users-list mb-4" id="offUsersList">
+                <p class="text-gray-500 text-center">Loading users...</p>
+            </div>
         </div>
 
         <div class="card p-6 animate-card">
@@ -159,41 +155,33 @@
                         <tr>
                             <th>Roll</th>
                             <th>Name</th>
-                            <th>Additional Items</th>
                             <th>Meal</th>
+                            <th>Additional Items</th>
                             <th>Lunch Served</th>
                             <th>Dinner Served</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
-                        <% users.forEach(user => { %>
-                            <% const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()); %>
+                        <% (users || []).forEach(user => { %>
+                            <% const mealHistory = (mealHistories || []).find(mh => mh.userId.toString() === user._id.toString()) || { meal: 'Off', additionalItems: [], lunchServed: false, dinnerServed: false, isExtra: false }; %>
                             <tr class="animate-row" data-user-id="<%= user._id %>">
                                 <td class="px-4 py-3"><%= user.classRoll %></td>
                                 <td class="px-4 py-3"><%= user.name %></td>
-                                <td class="px-4 py-3">
-                                    <%= mealHistory ? mealHistory.additionalItems.map(item => item === 'Off' ? 'Egg (Poultry)' : item).join(', ') || '-' : '-' %>
-                                </td>
-                                <td class="px-4 py-3 <%= mealHistory && mealHistory.meal === 'Off' ? 'meal-off' : '' %>">
-                                    <%= mealHistory ? (mealHistory.isExtra ? `${mealHistory.meal} (Extra)` : mealHistory.meal) : 'Off' %>
+                                <td class="px-4 py-3 <%= mealHistory.meal === 'Off' ? 'meal-off' : '' %>">
+                                    <%= mealHistory.isExtra ? `${mealHistory.meal} (Extra)` : mealHistory.meal %>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <%= mealHistory && mealHistory.lunchServed ? 'Yes' : 'No' %>
+                                    <%= mealHistory.additionalItems.length ? mealHistory.additionalItems.map(item => item === 'Off' ? 'Egg (Poultry)' : item).join(', ') : '-' %>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <%= mealHistory && mealHistory.dinnerServed ? 'Yes' : 'No' %>
-                                </td>
+                                <td class="px-4 py-3"><%= mealHistory.lunchServed ? 'Yes' : 'No' %></td>
+                                <td class="px-4 py-3"><%= mealHistory.dinnerServed ? 'Yes' : 'No' %></td>
                                 <td class="px-4 py-3 flex gap-2">
-                                    <% if (mealHistory && ['Lunch', 'Both'].includes(mealHistory.meal) && !mealHistory.lunchServed) { %>
-                                        <button onclick="serveMeal('<%= user._id %>', 'Lunch', '<%= selectedDate %>')" class="btn btn-green px-3 py-1 rounded-md text-xs">
-                                            Serve Lunch
-                                        </button>
+                                    <% if (['Lunch', 'Both'].includes(mealHistory.meal) && !mealHistory.lunchServed) { %>
+                                        <button onclick="serveMeal('<%= user._id %>', 'Lunch', '<%= selectedDate %>', event)" class="btn btn-green px-3 py-1 rounded-md text-xs">Serve Lunch</button>
                                     <% } %>
-                                    <% if (mealHistory && ['Dinner', 'Both'].includes(mealHistory.meal) && !mealHistory.dinnerServed) { %>
-                                        <button onclick="serveMeal('<%= user._id %>', 'Dinner', '<%= selectedDate %>')" class="btn btn-blue px-3 py-1 rounded-md text-xs">
-                                            Serve Dinner
-                                        </button>
+                                    <% if (['Dinner', 'Both'].includes(mealHistory.meal) && !mealHistory.dinnerServed) { %>
+                                        <button onclick="serveMeal('<%= user._id %>', 'Dinner', '<%= selectedDate %>', event)" class="btn btn-blue px-3 py-1 rounded-md text-xs">Serve Dinner</button>
                                     <% } %>
                                 </td>
                             </tr>
@@ -207,78 +195,101 @@
         <div class="popup-overlay" id="popupOverlay" onclick="closePopup()"></div>
         <div class="popup" id="popup">
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Enable Extra Meal for <span id="popupUserName"></span></h3>
-            <div id="offMealOptions"></div>
-            <button class="btn btn-blue px-4 py-2 mt-4" onclick="closePopup()">Close</button>
+            <div id="offMealOptions" class="mb-4"></div>
+            <button class="btn btn-blue px-4 py-2" onclick="closePopup()">Close</button>
         </div>
     </div>
 
     <script>
-        let canPlaySound = false;
-
-        function playSound(soundId) {
-            if (canPlaySound) {
-                const sound = document.getElementById(soundId);
-                if (sound) {
-                    sound.currentTime = 0;
-                    sound.play().catch(err => console.error('Error playing sound:', err));
-                }
+        // Normalize date to YYYY-MM-DD
+        function normalizeDate(dateStr) {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+                console.error(`Invalid date format: ${dateStr}`);
+                return new Date().toISOString().split('T')[0];
             }
+            return date.toISOString().split('T')[0];
         }
 
-        document.addEventListener('click', () => {
-            canPlaySound = true;
-        }, { once: true });
+        // Show success notification
+        function showSuccess(message) {
+            const div = document.createElement('div');
+            div.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg';
+            div.textContent = message;
+            document.body.appendChild(div);
+            anime({
+                targets: div,
+                translateX: [50, 0],
+                opacity: [0, 1],
+                duration: 500,
+                easing: 'easeOutQuad'
+            });
+            setTimeout(() => {
+                anime({
+                    targets: div,
+                    translateX: [0, 50],
+                    opacity: [1, 0],
+                    duration: 500,
+                    easing: 'easeInQuad',
+                    complete: () => div.remove()
+                });
+            }, 3000);
+        }
 
-        anime({
-            targets: '.animate-card',
-            translateY: [50, 0],
-            opacity: [0, 1],
-            delay: anime.stagger(100),
-            duration: 800,
-            easing: 'easeOutQuad'
-        });
+        // Show error notification
+        function showError(message) {
+            const div = document.createElement('div');
+            div.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg error';
+            div.textContent = message;
+            document.body.appendChild(div);
+            anime({
+                targets: div,
+                translateX: [50, 0],
+                opacity: [0, 1],
+                duration: 500,
+                easing: 'easeOutQuad'
+            });
+            setTimeout(() => {
+                anime({
+                    targets: div,
+                    translateX: [0, 50],
+                    opacity: [1, 0],
+                    duration: 500,
+                    easing: 'easeInQuad',
+                    complete: () => div.remove()
+                });
+            }, 3000);
+        }
 
-        anime({
-            targets: '.animate-row',
-            translateX: [-20, 0],
-            opacity: [0, 1],
-            delay: anime.stagger(50),
-            duration: 600,
-            easing: 'easeOutQuad'
-        });
-
+        // Fetch users with off meals
         let allUsersCache = [];
-
         async function fetchAllUsers() {
             try {
-                const date = '<%= selectedDate %>';
-                const batch = document.querySelector('select[name="batch"]').value;
-                const gender = document.querySelector('select[name="gender"]').value;
+                const date = normalizeDate('<%= selectedDate %>');
+                const batch = document.querySelector('select[name="batch"]').value || 'all';
+                const gender = document.querySelector('select[name="gender"]').value || 'all';
                 const response = await axios.get('/api/meal/all-users', { params: { date, batch, gender } });
-                const allUsers = response.data;
-                console.log('API Response for all-users:', response.data);
-                if (!allUsers || !Array.isArray(allUsers)) {
-                    throw new Error('API returned invalid or empty user data');
-                }
-                document.getElementById('totalUsersCount').textContent = allUsers.length;
+                allUsersCache = Array.isArray(response.data) ? response.data : [];
+                console.log('Fetched users:', allUsersCache);
+                document.getElementById('totalUsersCount').textContent = allUsersCache.length;
                 const offUsersList = document.getElementById('offUsersList');
-                offUsersList.innerHTML = allUsers.length ? allUsers.map(user => `
+                offUsersList.innerHTML = allUsersCache.length ? allUsersCache.map(user => `
                     <div class="flex justify-between items-center p-3 border-b border-gray-200 clickable animate-pop" data-user-id="${user._id}" data-name="${user.name}" data-off-meals='${JSON.stringify(user.offMeals || [])}'>
                         <span>${user.name} (Roll: ${user.classRoll})</span>
                     </div>
                 `).join('') : '<p class="text-gray-500 text-center">No users found</p>';
-                allUsersCache = allUsers;
                 attachClickEvents();
+                updateTotalMealCount();
             } catch (err) {
-                console.error('Error fetching all users:', err.message, err.response ? err.response.data : 'No response data');
-                document.getElementById('offUsersList').innerHTML = '<p class="text-gray-500 text-center">Error loading users: ' + (err.message || 'Unknown error') + '</p>';
-                showError('Failed to load users: ' + (err.message || 'Check server logs'));
+                console.error('Fetch users error:', err.response ? err.response.data : err.message);
+                document.getElementById('offUsersList').innerHTML = '<p class="text-gray-500 text-center">Failed to load users</p>';
+                showError('Failed to load users: ' + (err.response?.data?.error || err.message));
             }
         }
 
+        // Attach click events to user list items
         function attachClickEvents() {
-            const clickableElements = document.querySelectorAll('.clickable');
-            clickableElements.forEach(element => {
+            document.querySelectorAll('.clickable').forEach(element => {
                 element.onclick = () => {
                     const userId = element.getAttribute('data-user-id');
                     const name = element.getAttribute('data-name');
@@ -288,17 +299,18 @@
             });
         }
 
+        // Show popup for enabling extra meals
         function showPopup(userId, name, offMeals) {
             const popup = document.getElementById('popup');
             const popupOverlay = document.getElementById('popupOverlay');
             const offMealOptions = document.getElementById('offMealOptions');
-            document.getElementById('popupUserName').textContent = name;
+            document.getElementById('popupUserName').textContent = name || 'Unknown';
             offMealOptions.innerHTML = offMeals.length ? offMeals.map(meal => `
                 <div class="off-meal-option flex justify-between items-center mb-2">
-                    <span>${meal} (Off)</span>
-                    <button class="btn btn-green px-3 py-1 text-xs" onclick="enableExtraMeal('${userId}', '${meal}', '${name}')">On</button>
+                    <span>${meal}</span>
+                    <button class="btn btn-green px-3 py-1 text-xs" onclick="enableExtraMeal('${userId}', '${meal}', '${name}')">Enable ${meal}</button>
                 </div>
-            `).join('') : '<p class="text-gray-500">No meals off</p>';
+            `).join('') : '<p class="text-gray-500">No meals available to enable</p>';
             popup.style.display = 'block';
             popupOverlay.style.display = 'block';
             anime({
@@ -310,6 +322,7 @@
             });
         }
 
+        // Close popup
         function closePopup() {
             const popup = document.getElementById('popup');
             const popupOverlay = document.getElementById('popupOverlay');
@@ -326,23 +339,26 @@
             });
         }
 
+        // Enable extra meal
         async function enableExtraMeal(userId, mealType, name) {
             try {
-                const date = '<%= selectedDate %>';
+                const date = normalizeDate('<%= selectedDate %>');
                 const response = await axios.post('/api/meal/extra-specific', { userId, mealType, date });
-                showSuccess(`Extra ${mealType} enabled for ${name}!`);
+                showSuccess(`Extra ${mealType} enabled for ${name}`);
                 const row = document.querySelector(`tr[data-user-id="${userId}"]`);
-                if (row) {
-                    const mealCell = row.cells[3];
+                if (row && row.cells[2]) {
+                    const mealCell = row.cells[2];
                     const currentMeal = mealCell.textContent.replace(' (Extra)', '');
-                    mealCell.textContent = currentMeal === 'Off' ? `${mealType} (Extra)` :
-                                          currentMeal === 'Lunch' && mealType === 'Dinner' ? 'Both (Extra)' :
-                                          currentMeal === 'Dinner' && mealType === 'Lunch' ? 'Both (Extra)' : `${currentMeal} (Extra)`;
-                    if (['Lunch', 'Both'].includes(mealType) && !row.cells[4].textContent.includes('Yes')) {
-                        row.cells[6].innerHTML += `<button onclick="serveMeal('${userId}', 'Lunch', '${date}')" class="btn btn-green px-3 py-1 rounded-md text-xs">Serve Lunch</button>`;
+                    const newMeal = currentMeal === 'Off' ? mealType :
+                                    currentMeal === 'Lunch' && mealType === 'Dinner' ? 'Both' :
+                                    currentMeal === 'Dinner' && mealType === 'Lunch' ? 'Both' : currentMeal;
+                    mealCell.textContent = `${newMeal} (Extra)`;
+                    const actionCell = row.cells[6];
+                    if (['Lunch', 'Both'].includes(newMeal) && row.cells[4].textContent !== 'Yes') {
+                        actionCell.innerHTML += `<button onclick="serveMeal('${userId}', 'Lunch', '${date}', event)" class="btn btn-green px-3 py-1 rounded-md text-xs ml-2">Serve Lunch</button>`;
                     }
-                    if (['Dinner', 'Both'].includes(mealType) && !row.cells[5].textContent.includes('Yes')) {
-                        row.cells[6].innerHTML += `<button onclick="serveMeal('${userId}', 'Dinner', '${date}')" class="btn btn-blue px-3 py-1 rounded-md text-xs">Serve Dinner</button>`;
+                    if (['Dinner', 'Both'].includes(newMeal) && row.cells[5].textContent !== 'Yes') {
+                        actionCell.innerHTML += `<button onclick="serveMeal('${userId}', 'Dinner', '${date}', event)" class="btn btn-blue px-3 py-1 rounded-md text-xs ml-2">Serve Dinner</button>`;
                     }
                     anime({
                         targets: row,
@@ -350,46 +366,54 @@
                         duration: 1000,
                         easing: 'easeOutQuad'
                     });
+                } else {
+                    console.error(`Row or meal cell not found for user ${userId}`);
+                    showError('Failed to update UI');
                 }
                 closePopup();
                 await fetchAllUsers();
-                updateTotalMealCount();
             } catch (err) {
-                console.error(`Error enabling ${mealType}:`, err);
-                showError(`Failed to enable ${mealType}`);
+                console.error(`Error enabling ${mealType}:`, err.response ? err.response.data : err.message);
+                showError(`Failed to enable ${mealType}: ${err.response?.data?.error || err.message}`);
             }
         }
 
+        // Search users
         function searchUsers() {
             const query = document.getElementById('userSearch').value.toLowerCase();
             const offUsersList = document.getElementById('offUsersList');
-            if (query.length < 2) {
-                offUsersList.innerHTML = allUsersCache.length ? allUsersCache.map(user => `
-                    <div class="flex justify-between items-center p-3 border-b border-gray-200 clickable animate-pop" data-user-id="${user._id}" data-name="${user.name}" data-off-meals='${JSON.stringify(user.offMeals || [])}'>
-                        <span>${user.name} (Roll: ${user.classRoll})</span>
-                    </div>
-                `).join('') : '<p class="text-gray-500 text-center">No users found</p>';
-            } else {
-                const filteredUsers = allUsersCache.filter(user => user.name.toLowerCase().includes(query));
-                offUsersList.innerHTML = filteredUsers.length ? filteredUsers.map(user => `
-                    <div class="flex justify-between items-center p-3 border-b border-gray-200 clickable animate-pop" data-user-id="${user._id}" data-name="${user.name}" data-off-meals='${JSON.stringify(user.offMeals || [])}'>
-                        <span>${user.name} (Roll: ${user.classRoll})</span>
-                    </div>
-                `).join('') : '<p class="text-gray-500 text-center">No users found</p>';
-            }
+            const filteredUsers = query.length < 2 ? allUsersCache : allUsersCache.filter(user => user.name.toLowerCase().includes(query));
+            offUsersList.innerHTML = filteredUsers.length ? filteredUsers.map(user => `
+                <div class="flex justify-between items-center p-3 border-b border-gray-200 clickable animate-pop" data-user-id="${user._id}" data-name="${user.name}" data-off-meals='${JSON.stringify(user.offMeals || [])}'>
+                    <span>${user.name} (Roll: ${user.classRoll})</span>
+                </div>
+            `).join('') : '<p class="text-gray-500 text-center">No users found</p>';
             attachClickEvents();
         }
 
-        async function serveMeal(userId, mealType, date) {
+        // Serve meal
+        async function serveMeal(userId, mealType, dateStr, event) {
             try {
+                if (!event || !event.target) {
+                    console.error(`Invalid event in serveMeal for user ${userId}`);
+                    showError(`Failed to process ${mealType}`);
+                    return;
+                }
+                const date = normalizeDate(dateStr);
+                console.log(`Serving ${mealType} for user ${userId} on ${date}`);
                 const response = await axios.post(`/api/meal/serve/${userId}`, { mealType, date });
                 const button = event.target;
                 button.classList.add('btn-disabled');
                 button.disabled = true;
                 button.textContent = `${mealType} Served`;
                 const row = button.closest('tr');
+                if (!row) {
+                    console.error(`Row not found for user ${userId} in serveMeal`);
+                    showError(`Failed to update UI for ${mealType}`);
+                    return;
+                }
                 row.cells[mealType === 'Lunch' ? 4 : 5].textContent = 'Yes';
-                showSuccess(`${mealType} served successfully!`);
+                showSuccess(`${mealType} served successfully`);
                 anime({
                     targets: row,
                     backgroundColor: ['#e0f7fa', '#ffffff'],
@@ -398,79 +422,63 @@
                 });
                 updateTotalMealCount();
             } catch (err) {
-                console.error(`Error serving ${mealType}:`, err);
-                showError(`Failed to serve ${mealType}`);
+                console.error(`Error serving ${mealType}:`, {
+                    message: err.message,
+                    response: err.response ? { status: err.response.status, data: err.response.data } : 'No response'
+                });
+                showError(`Failed to serve ${mealType}: ${err.response?.data?.error || err.message}`);
             }
         }
 
-        function updateTotalMealCount() {
-            axios.get('/api/meal/total-count', { params: { date: '<%= selectedDate %>' } })
-                .then(response => {
-                    document.getElementById('totalMealCount').textContent = response.data.totalCount || 0;
-                })
-                .catch(err => {
-                    console.error('Error fetching total meal count:', err);
-                    showError('Failed to fetch total meal count');
-                });
+        // Update total meal count
+        async function updateTotalMealCount() {
+            try {
+                const date = normalizeDate('<%= selectedDate %>');
+                const response = await axios.get('/api/meal/total-count', { params: { date } });
+                const totalMealCount = document.getElementById('totalMealCount');
+                if (totalMealCount) {
+                    totalMealCount.textContent = response.data.totalCount || 0;
+                }
+            } catch (err) {
+                console.error('Error fetching total meal count:', err.response ? err.response.data : err.message);
+                showError('Failed to fetch total meal count');
+            }
         }
 
-        function showSuccess(message) {
-            const div = document.createElement('div');
-            div.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg animate-slide-in';
-            div.textContent = message;
-            document.body.appendChild(div);
-            anime({
-                targets: div,
-                translateX: [50, 0],
-                opacity: [0, 1],
-                duration: 500,
-                easing: 'easeOutQuad'
-            });
-            setTimeout(() => {
-                anime({
-                    targets: div,
-                    translateX: [0, 50],
-                    opacity: [1, 0],
-                    duration: 500,
-                    easing: 'easeInQuad',
-                    complete: () => div.remove()
-                });
-            }, 3000);
-        }
-
-        function showError(message) {
-            const div = document.createElement('div');
-            div.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg animate-slide-in';
-            div.textContent = message;
-            document.body.appendChild(div);
-            anime({
-                targets: div,
-                translateX: [50, 0],
-                opacity: [0, 1],
-                duration: 500,
-                easing: 'easeOutQuad'
-            });
-            setTimeout(() => {
-                anime({
-                    targets: div,
-                    translateX: [0, 50],
-                    opacity: [1, 0],
-                    duration: 500,
-                    easing: 'easeInQuad',
-                    complete: () => div.remove()
-                });
-            }, 3000);
-        }
-
+        // Initialize page
         document.addEventListener('DOMContentLoaded', async () => {
-            await fetchAllUsers();
-        });
-
-        document.getElementById('extraMealSection').addEventListener('click', () => {
-            if (!document.getElementById('offUsersList').innerHTML.trim()) {
-                fetchAllUsers();
+            try {
+                // Verify session
+                await axios.get('/staff/serving');
+                await fetchAllUsers();
+                // Animate cards and rows
+                anime({
+                    targets: '.animate-card',
+                    translateY: [50, 0],
+                    opacity: [0, 1],
+                    delay: anime.stagger(100),
+                    duration: 800,
+                    easing: 'easeOutQuad'
+                });
+                anime({
+                    targets: '.animate-row',
+                    translateX: [-20, 0],
+                    opacity: [0, 1],
+                    delay: anime.stagger(50),
+                    duration: 600,
+                    easing: 'easeOutQuad'
+                });
+            } catch (err) {
+                console.error('Session check error:', err.response ? err.response.data : err.message);
+                if (err.response?.status === 401) {
+                    showError('Session expired. Redirecting to login...');
+                    setTimeout(() => window.location.href = '/staff/login', 2000);
+                } else {
+                    showError('Failed to load page: ' + (err.response?.data?.error || err.message));
+                }
             }
         });
     </script>
 </body>
 </html>
+```
