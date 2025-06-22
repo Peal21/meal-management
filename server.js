@@ -7,20 +7,19 @@ const bcrypt = require('bcrypt');
 const path = require('path');
 const cron = require('node-cron');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'default-secret-' + Math.random().toString(36).slice(2); // Fallback with random suffix
+const PORT = process.env.PORT || 3000; // Render overrides PORT
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://askpeal121:Peal1234@cluster0.teofx.mongodb.net/mealPlanner?retryWrites=true&w=majority';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6';
 
 // Validate environment variables
 if (!MONGODB_URI) {
-  console.error('FATAL: MONGODB_URI is not set. Please configure it in Render or .env.');
+  console.error('FATAL: MONGODB_URI is not set.');
   process.exit(1);
 }
-if (SESSION_SECRET.startsWith('default-secret')) {
+if (SESSION_SECRET === 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6' && process.env.NODE_ENV === 'production') {
   console.warn('WARNING: Using default SESSION_SECRET. Set a secure secret in production.');
 }
 
