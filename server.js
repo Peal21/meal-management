@@ -115,12 +115,20 @@ const mealHistorySchema = new mongoose.Schema({
 const staffSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
+  isActive: { type: Boolean, default: true },
 }, { collection: 'staff' });
 
 const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
 }, { collection: 'admins' });
+
+const depositSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  amount: { type: Number, required: true, min: 0 },
+  status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+  requestDate: { type: Date, default: Date.now },
+}, { collection: 'deposits' });
 
 userSchema.index({ classRoll: 1, batch: 1 }, { unique: true });
 mealHistorySchema.index({ userId: 1, date: 1 }, { unique: true });
@@ -129,6 +137,7 @@ const User = mongoose.model('User', userSchema);
 const MealHistory = mongoose.model('MealHistory', mealHistorySchema);
 const Staff = mongoose.model('Staff', staffSchema);
 const Admin = mongoose.model('Admin', adminSchema);
+const Deposit = mongoose.model('Deposit', depositSchema);
 
 // Cron Job: Daily meal count update at midnight Asia/Dhaka
 cron.schedule('0 0 * * *', async () => {
@@ -237,44 +246,24 @@ app.get('/api/meal-history', requireLogin, async (req, res) => {
 app.get('/api/meal-history/admin', requireAdmin, async (req, res) => {
   try {
     const { batch, gender, date } = req.query;
-    console.log('Query params:', { batch, gender, date });
-    if (!date) {
-      console.error('Date parameter missing');
-      return res.status(400).json({ error: 'Date parameter is required' });
-    }
+    if (!date) return res.status(400).json({ error: 'Date parameter is required' });
     const selectedDate = new Date(date);
-    if (isNaN(selectedDate.getTime())) {
-      console.error(`Invalid date: ${date}`);
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
+    if (isNaN(selectedDate.getTime())) return res.status(400).json({ error: 'Invalid date format' });
     selectedDate.setHours(0, 0, 0, 0);
     let query = {};
     if (batch && batch !== 'all') query.batch = batch;
     if (gender && gender !== 'all') query.gender = gender;
-    console.log('User query:', query);
     const users = await User.find(query).sort({ batch: 1, classRoll: 1 }).lean();
-    console.log('Users found:', users.length);
-    if (!users.length) {
-      console.error(`No users found for batch: ${batch || 'all'}, gender: ${gender || 'all'}`);
-      return res.status(404).json({ error: 'No users found' });
-    }
+    if (!users.length) return res.status(404).json({ error: 'No users found' });
     const mealHistories = await MealHistory.find({
       userId: { $in: users.map(u => u._id) },
       date: selectedDate,
     }).lean();
-    console.log('Meal histories found:', mealHistories.length);
-    let totalLunch = 0;
-    let totalDinner = 0;
-    let totalDailyMealCount = 0;
-    let totalMealsSum = 0;
+    let totalLunch = 0, totalDinner = 0, totalDailyMealCount = 0, totalMealsSum = 0;
     const additionalItemsCount = {};
     const userData = users.map(user => {
       const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()) || {
-        meal: 'Off',
-        additionalItems: [],
-        lunchServed: false,
-        dinnerServed: false,
-        dailyMealCount: 0,
+        meal: 'Off', additionalItems: [], lunchServed: false, dinnerServed: false, dailyMealCount: 0,
       };
       totalMealsSum += user.totalMealCount || 0;
       totalLunch += mealHistory.lunchServed ? 1 : 0;
@@ -309,10 +298,11 @@ app.get('/api/meal-history/admin', requireAdmin, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Admin meal history API error:', { message: error.message, stack: error.stack });
+    console.error('Admin meal history API error:', error.message);
     res.status(500).json({ error: 'Error fetching meal history' });
   }
 });
+
 app.get('/create-admin', async (req, res) => {
   try {
     if (await Admin.findOne({ email: 'admin@example.com' }).lean()) {
@@ -344,9 +334,7 @@ app.get('/create-staff', async (req, res) => {
 app.post('/admin/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    if (!email || !password) {
-      return res.status(400).send('Email and password required');
-    }
+    if (!email || !password) return res.status(400).send('Email and password required');
     const admin = await Admin.findOne({ email }).lean();
     if (!admin || !(await bcrypt.compare(password, admin.password))) {
       return res.status(401).send('Invalid credentials');
@@ -363,9 +351,7 @@ app.post('/admin/login', async (req, res) => {
 app.post('/staff/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    if (!email || !password) {
-      return res.status(400).send('Email and password required');
-    }
+    if (!email || !password) return res.status(400).send('Email and password required');
     const staff = await Staff.findOne({ email }).lean();
     if (!staff || !(await bcrypt.compare(password, staff.password))) {
       return res.status(401).send('Invalid credentials');
@@ -385,21 +371,11 @@ app.post('/signup', async (req, res) => {
     if (!name || !classRoll || !email || !password || !gender || !batch) {
       return res.status(400).send('All fields required');
     }
-    if (await User.findOne({ email }).lean()) {
-      return res.status(400).send('User already exists');
-    }
-    if (!['09', '10', '11', '12', '13'].includes(batch)) {
-      return res.status(400).send('Invalid batch');
-    }
-    if (!['Male', 'Female'].includes(gender)) {
-      return res.status(400).send('Invalid gender');
-    }
-    if (classRoll < 1 || classRoll > 100) {
-      return res.status(400).send('Invalid class roll');
-    }
-    if (await User.findOne({ classRoll, batch }).lean()) {
-      return res.status(400).send('Class roll exists for this batch');
-    }
+    if (await User.findOne({ email }).lean()) return res.status(400).send('User already exists');
+    if (!['09', '10', '11', '12', '13'].includes(batch)) return res.status(400).send('Invalid batch');
+    if (!['Male', 'Female'].includes(gender)) return res.status(400).send('Invalid gender');
+    if (classRoll < 1 || classRoll > 100) return res.status(400).send('Invalid class roll');
+    if (await User.findOne({ classRoll, batch }).lean()) return res.status(400).send('Class roll exists for this batch');
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await new User({ name, classRoll, email, password: hashedPassword, gender, batch }).save();
     req.session.userId = user._id.toString();
@@ -414,9 +390,7 @@ app.post('/signup', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    if (!email || !password) {
-      return res.status(400).send('Email and password required');
-    }
+    if (!email || !password) return res.status(400).send('Email and password required');
     const user = await User.findOne({ email }).lean();
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(400).send('Invalid credentials');
@@ -433,21 +407,15 @@ app.post('/login', async (req, res) => {
 app.post('/meal-update', requireLogin, async (req, res) => {
   const { meal, additionalItems, date } = req.body;
   try {
-    if (!['Lunch', 'Dinner', 'Both', 'Off'].includes(meal)) {
-      return res.status(400).json({ error: 'Invalid meal type' });
-    }
-    if (!date) {
-      return res.status(400).json({ error: 'Date required' });
-    }
+    if (!['Lunch', 'Dinner', 'Both', 'Off'].includes(meal)) return res.status(400).json({ error: 'Invalid meal type' });
+    if (!date) return res.status(400).json({ error: 'Date required' });
     const selectedDate = new Date(date);
     selectedDate.setHours(0, 0, 0, 0);
     if (new Date(selectedDate.getTime() + 24 * 60 * 60 * 1000 - 1) < new Date()) {
       return res.status(400).json({ error: 'Cannot update past date' });
     }
     const user = await User.findById(req.session.userId).lean();
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(401).json({ error: 'User not found' });
     const additionalItemsArray = Array.isArray(additionalItems) ? additionalItems.filter(Boolean) : [additionalItems].filter(Boolean);
     let mealHistory = await MealHistory.findOne({ userId: req.session.userId, date: selectedDate }).lean();
     const newMealCount = meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(meal) ? 1 : 0;
@@ -562,31 +530,16 @@ app.get('/staff/serving', requireStaff, async (req, res) => {
 app.post('/api/meal/serve/:userId', requireStaff, async (req, res) => {
   const { userId } = req.params;
   const { mealType, date } = req.body;
-  console.log(`POST /api/meal/serve/${userId}`, { mealType, date, sessionStaff: !!req.session.staff });
   try {
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      console.log(`Invalid userId: ${userId}`);
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-    if (!['Lunch', 'Dinner'].includes(mealType)) {
-      console.log(`Invalid mealType: ${mealType}`);
-      return res.status(400).json({ error: 'Invalid meal type' });
-    }
+    if (!mongoose.Types.ObjectId.isValid(userId)) return res.status(400).json({ error: 'Invalid user ID' });
+    if (!['Lunch', 'Dinner'].includes(mealType)) return res.status(400).json({ error: 'Invalid meal type' });
     const selectedDate = new Date(date);
-    if (isNaN(selectedDate.getTime())) {
-      console.log(`Invalid date: ${date}`);
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
+    if (isNaN(selectedDate.getTime())) return res.status(400).json({ error: 'Invalid date format' });
     selectedDate.setHours(0, 0, 0, 0);
-    console.log(`Normalized date: ${selectedDate.toISOString()}`);
     let mealHistory = await MealHistory.findOne({ userId, date: selectedDate }).lean();
     if (!mealHistory) {
-      console.log(`No meal history found for user ${userId} on ${selectedDate}`);
       const user = await User.findById(userId).lean();
-      if (!user) {
-        console.log(`User not found: ${userId}`);
-        return res.status(404).json({ error: 'User not found' });
-      }
+      if (!user) return res.status(404).json({ error: 'User not found' });
       const previousMeal = await MealHistory.findOne({ userId, date: { $lt: selectedDate } }).sort({ date: -1 }).lean();
       const newMealCount = previousMeal ? (previousMeal.meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(previousMeal.meal) ? 1 : 0) : 0;
       mealHistory = await new MealHistory({
@@ -598,33 +551,24 @@ app.post('/api/meal/serve/:userId', requireStaff, async (req, res) => {
         lunchServed: false,
         dinnerServed: false,
       }).save();
-      console.log(`Created meal history: ${mealHistory._id}`);
       await User.updateOne({ _id: userId }, { $inc: { totalMealCount: newMealCount } });
     }
-    console.log(`Meal history: ${JSON.stringify(mealHistory)}`);
-    if (mealHistory.meal === 'Off') {
-      console.log(`Meal is Off for user ${userId}`);
-      return res.status(400).json({ error: 'Cannot serve meal for Off status' });
-    }
+    if (mealHistory.meal === 'Off') return res.status(400).json({ error: 'Cannot serve meal for Off status' });
     if ((mealType === 'Lunch' && mealHistory.lunchServed) || (mealType === 'Dinner' && mealHistory.dinnerServed)) {
-      console.log(`${mealType} already served for user ${userId}`);
       return res.status(400).json({ error: `${mealType} already served` });
     }
     if (mealType === 'Lunch' && !['Lunch', 'Both'].includes(mealHistory.meal)) {
-      console.log(`Lunch not enabled for user ${userId}, meal: ${mealHistory.meal}`);
       return res.status(400).json({ error: 'Lunch not enabled' });
     }
     if (mealType === 'Dinner' && !['Dinner', 'Both'].includes(mealHistory.meal)) {
-      console.log(`Dinner not enabled for user ${userId}, meal: ${mealHistory.meal}`);
       return res.status(400).json({ error: 'Dinner not enabled' });
     }
     await MealHistory.updateOne({ _id: mealHistory._id }, {
       [mealType === 'Lunch' ? 'lunchServed' : 'dinnerServed']: true,
     });
-    console.log(`${mealType} served for user ${userId}`);
     res.json({ message: `${mealType} served successfully` });
   } catch (error) {
-    console.error('Serve meal error:', { message: error.message, stack: error.stack });
+    console.error('Serve meal error:', error.message);
     res.status(500).json({ error: 'Failed to serve meal' });
   }
 });
@@ -632,9 +576,7 @@ app.post('/api/meal/serve/:userId', requireStaff, async (req, res) => {
 app.post('/api/meal/extra', requireStaff, async (req, res) => {
   const { date, mealType } = req.body;
   try {
-    if (!['Lunch', 'Dinner', 'Both'].includes(mealType)) {
-      return res.status(400).json({ error: 'Invalid meal type' });
-    }
+    if (!['Lunch', 'Dinner', 'Both'].includes(mealType)) return res.status(400).json({ error: 'Invalid meal type' });
     const selectedDate = new Date(date);
     selectedDate.setHours(0, 0, 0, 0);
     const updated = await MealHistory.updateMany({ date: selectedDate, meal: 'Off' }, {
@@ -658,17 +600,13 @@ app.post('/api/meal/extra', requireStaff, async (req, res) => {
 app.post('/api/meal/extra-specific', requireStaff, async (req, res) => {
   const { userId, mealType, date } = req.body;
   try {
-    if (!['Lunch', 'Dinner'].includes(mealType)) {
-      return res.status(400).json({ error: 'Invalid meal type' });
-    }
+    if (!['Lunch', 'Dinner'].includes(mealType)) return res.status(400).json({ error: 'Invalid meal type' });
     const selectedDate = new Date(date);
     selectedDate.setHours(0, 0, 0, 0);
     let mealHistory = await MealHistory.findOne({ userId, date: selectedDate }).lean();
     if (!mealHistory) {
       const user = await User.findById(userId).lean();
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
+      if (!user) return res.status(404).json({ error: 'User not found' });
       mealHistory = await new MealHistory({
         userId,
         date: selectedDate,
@@ -717,9 +655,7 @@ app.get('/api/meal/all-users', requireStaff, async (req, res) => {
     const mealHistories = await MealHistory.find({ date: selectedDate }).lean();
     const offUsers = users.map(user => {
       const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()) || {
-        meal: 'Off',
-        lunchServed: false,
-        dinnerServed: false,
+        meal: 'Off', lunchServed: false, dinnerServed: false,
       };
       const offMeals = [];
       if (mealHistory.meal === 'Off') offMeals.push('Lunch', 'Dinner');
@@ -753,18 +689,12 @@ app.get('/api/meal/total-count', requireStaff, async (req, res) => {
 app.post('/api/meal/staff-update', requireStaff, async (req, res) => {
   const { userId, meal, date } = req.body;
   try {
-    if (!['Lunch', 'Dinner', 'Both', 'Off'].includes(meal)) {
-      return res.status(400).json({ error: 'Invalid meal type' });
-    }
-    if (!date || !userId) {
-      return res.status(400).json({ error: 'Date and userId required' });
-    }
+    if (!['Lunch', 'Dinner', 'Both', 'Off'].includes(meal)) return res.status(400).json({ error: 'Invalid meal type' });
+    if (!date || !userId) return res.status(400).json({ error: 'Date and userId required' });
     const selectedDate = new Date(date);
     selectedDate.setHours(0, 0, 0, 0);
     const user = await User.findById(userId).lean();
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(401).json({ error: 'User not found' });
     let mealHistory = await MealHistory.findOne({ userId, date: selectedDate }).lean();
     const newMealCount = meal === 'Both' ? 2 : ['Lunch', 'Dinner'].includes(meal) ? 1 : 0;
     if (mealHistory) {
@@ -802,9 +732,7 @@ app.post('/api/users/:id/update', requireAdmin, async (req, res) => {
     const updates = {};
     if (deposit !== undefined) updates.deposit = Number(deposit);
     if (totalMealCount !== undefined) updates.totalMealCount = Number(totalMealCount);
-    if (!Object.keys(updates).length) {
-      return res.status(400).json({ error: 'No updates provided' });
-    }
+    if (!Object.keys(updates).length) return res.status(400).json({ error: 'No updates provided' });
     await User.updateOne({ _id: id }, { $set: updates });
     res.json({ message: 'User updated successfully' });
   } catch (error) {
@@ -823,35 +751,152 @@ app.get('/api/users', requireAdmin, async (req, res) => {
   }
 });
 
+app.post('/api/admin/users', requireAdmin, async (req, res) => {
+  const { name, classRoll, email, password, gender, batch } = req.body;
+  try {
+    if (!name || !classRoll || !email || !password || !gender || !batch) {
+      return res.status(400).json({ error: 'All fields required' });
+    }
+    if (await User.findOne({ email }).lean()) return res.status(400).json({ error: 'User already exists' });
+    if (!['09', '10', '11', '12', '13'].includes(batch)) return res.status(400).json({ error: 'Invalid batch' });
+    if (!['Male', 'Female'].includes(gender)) return res.status(400).json({ error: 'Invalid gender' });
+    if (classRoll < 1 || classRoll > 100) return res.status(400).json({ error: 'Invalid class roll' });
+    if (await User.findOne({ classRoll, batch }).lean()) return res.status(400).json({ error: 'Class roll exists for this batch' });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await new User({ name, classRoll, email, password: hashedPassword, gender, batch }).save();
+    res.json({ message: 'User added successfully' });
+  } catch (error) {
+    console.error('Add user error:', error.message);
+    res.status(500).json({ error: 'Failed to add user' });
+  }
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid user ID' });
+    const user = await User.findById(id).lean();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await User.deleteOne({ _id: id });
+    await MealHistory.deleteMany({ userId: id });
+    await Deposit.deleteMany({ userId: id });
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error.message);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+app.get('/api/admin/staff', requireAdmin, async (req, res) => {
+  try {
+    const staff = await Staff.find().lean();
+    res.json({ staff });
+  } catch (error) {
+    console.error('Fetch staff error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch staff' });
+  }
+});
+
+app.post('/api/admin/staff', requireAdmin, async (req, res) => {
+  const { name, email, password } = req.body;
+  try {
+    if (!name || !email || !password) return res.status(400).json({ error: 'All fields required' });
+    if (await Staff.findOne({ email }).lean()) return res.status(400).json({ error: 'Staff already exists' });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await new Staff({ email, password: hashedPassword }).save();
+    res.json({ message: 'Staff added successfully' });
+  } catch (error) {
+    console.error('Add staff error:', error.message);
+    res.status(500).json({ error: 'Failed to add staff' });
+  }
+});
+
+app.put('/api/admin/staff/:id/toggle-status', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid staff ID' });
+    const staff = await Staff.findById(id).lean();
+    if (!staff) return res.status(404).json({ error: 'Staff not found' });
+    await Staff.updateOne({ _id: id }, { isActive: !staff.isActive });
+    res.json({ message: `Staff ${staff.isActive ? 'deactivated' : 'activated'} successfully` });
+  } catch (error) {
+    console.error('Toggle staff status error:', error.message);
+    res.status(500).json({ error: 'Failed to toggle staff status' });
+  }
+});
+
+app.delete('/api/admin/staff/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid staff ID' });
+    const staff = await Staff.findById(id).lean();
+    if (!staff) return res.status(404).json({ error: 'Staff not found' });
+    await Staff.deleteOne({ _id: id });
+    res.json({ message: 'Staff deleted successfully' });
+  } catch (error) {
+    console.error('Delete staff error:', error.message);
+    res.status(500).json({ error: 'Failed to delete staff' });
+  }
+});
+
+app.get('/api/admin/deposits', requireAdmin, async (req, res) => {
+  try {
+    const deposits = await Deposit.find().populate('userId', 'name classRoll').lean();
+    res.json({ deposits });
+  } catch (error) {
+    console.error('Fetch deposits error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch deposits' });
+  }
+});
+
+app.post('/api/admin/deposits/:id/approve', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid deposit ID' });
+    const deposit = await Deposit.findById(id).lean();
+    if (!deposit) return res.status(404).json({ error: 'Deposit not found' });
+    if (deposit.status !== 'Pending') return res.status(400).json({ error: 'Deposit already processed' });
+    await Deposit.updateOne({ _id: id }, { status: 'Approved' });
+    await User.updateOne({ _id: deposit.userId }, { $inc: { deposit: deposit.amount } });
+    res.json({ message: 'Deposit approved successfully' });
+  } catch (error) {
+    console.error('Approve deposit error:', error.message);
+    res.status(500).json({ error: 'Failed to approve deposit' });
+  }
+});
+
+app.post('/api/admin/deposits/:id/reject', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid deposit ID' });
+    const deposit = await Deposit.findById(id).lean();
+    if (!deposit) return res.status(404).json({ error: 'Deposit not found' });
+    if (deposit.status !== 'Pending') return res.status(400).json({ error: 'Deposit already processed' });
+    await Deposit.updateOne({ _id: id }, { status: 'Rejected' });
+    res.json({ message: 'Deposit rejected successfully' });
+  } catch (error) {
+    console.error('Reject deposit error:', error.message);
+    res.status(500).json({ error: 'Failed to reject deposit' });
+  }
+});
+
 app.get('/export-excel', requireLogin, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId).lean();
-    if (!user) {
-      console.error(`User not found: ${req.session.userId}`);
-      return res.status(404).send('User not found');
-    }
-
+    if (!user) return res.status(404).send('User not found');
     const { date } = req.query;
     const selectedDate = date ? new Date(date) : new Date();
     selectedDate.setHours(0, 0, 0, 0);
-
     const users = await User.find({ batch: user.batch, gender: user.gender }).sort({ classRoll: 1 }).lean();
-    if (!users.length) {
-      console.error(`No users found for batch: ${user.batch}, gender: ${user.gender}`);
-      return res.status(404).send('No users found');
-    }
-
+    if (!users.length) return res.status(404).send('No users found');
     const mealHistories = await MealHistory.find({
       userId: { $in: users.map(u => u._id) },
       date: selectedDate,
     }).lean();
-
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(`MUL-B${user.batch}-${user.gender.charAt(0)}`);
     worksheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 7 }];
     worksheet.properties.defaultRowHeight = 20;
-
-    // Header
     worksheet.mergeCells('A1:H1');
     worksheet.getCell('A1').value = 'Satkhira Medical College';
     worksheet.getCell('A1').font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -862,13 +907,11 @@ app.get('/export-excel', requireLogin, async (req, res) => {
     };
     worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
     worksheet.getRow(1).height = 50;
-
     worksheet.mergeCells('A2:H2');
     worksheet.getCell('A2').value = 'Meal Update List';
     worksheet.getCell('A2').font = { name: 'Arial', size: 14, bold: true };
     worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
     worksheet.getRow(2).height = 30;
-
     worksheet.getCell('A3').value = `Batch: ${user.batch}`;
     worksheet.getCell('A4').value = `Gender: ${user.gender}`;
     worksheet.getCell('A5').value = `Date: ${selectedDate.toLocaleDateString('en-GB')}`;
@@ -877,8 +920,6 @@ app.get('/export-excel', requireLogin, async (req, res) => {
       worksheet.getCell(cell).font = { name: 'Arial', size: 12, bold: true };
       worksheet.getCell(cell).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
     });
-
-    // Table Headers
     worksheet.getRow(7).values = ['Class Roll', 'Name', 'Meal', 'Additional Items', 'Lunch Served', 'Dinner Served', 'Daily Meal Count', 'Total'];
     worksheet.getRow(7).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     worksheet.getRow(7).fill = {
@@ -898,22 +939,11 @@ app.get('/export-excel', requireLogin, async (req, res) => {
       { key: 'dailyMealCount', width: 15 },
       { key: 'total', width: 18 },
     ];
-
-    // Data Rows
-    let rowIndex = 8;
-    let totalMealsSum = 0;
-    let totalLunch = 0;
-    let totalDinner = 0;
-    let totalDailyMealCount = 0;
+    let rowIndex = 8, totalMealsSum = 0, totalLunch = 0, totalDinner = 0, totalDailyMealCount = 0;
     const additionalItemsCount = {};
-
     for (const user of users) {
       const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()) || {
-        meal: 'Off',
-        additionalItems: [],
-        lunchServed: false,
-        dinnerServed: false,
-        dailyMealCount: 0,
+        meal: 'Off', additionalItems: [], lunchServed: false, dinnerServed: false, dailyMealCount: 0,
       };
       totalMealsSum += user.totalMealCount || 0;
       totalLunch += mealHistory.lunchServed ? 1 : 0;
@@ -922,7 +952,6 @@ app.get('/export-excel', requireLogin, async (req, res) => {
       mealHistory.additionalItems.forEach(item => {
         additionalItemsCount[item] = (additionalItemsCount[item] || 0) + 1;
       });
-
       const row = worksheet.addRow({
         classRoll: user.classRoll,
         name: user.name,
@@ -940,25 +969,14 @@ app.get('/export-excel', requireLogin, async (req, res) => {
       });
       rowIndex++;
     }
-
-    // Total Row for totalMealCount
-    const totalRow = worksheet.addRow({
-      name: 'Total (Cumulative)',
-      total: totalMealsSum,
-    });
+    const totalRow = worksheet.addRow({ name: 'Total (Cumulative)', total: totalMealsSum });
     totalRow.font = { name: 'Arial', size: 10, bold: true };
-    totalRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE6E6FA' },
-    };
+    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
     totalRow.alignment = { vertical: 'middle', horizontal: 'left' };
     totalRow.eachCell(cell => {
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
     });
     rowIndex++;
-
-    // Summary Row for Lunch, Dinner, Daily Meal Count, and Additional Items
     const additionalItemsSummary = Object.entries(additionalItemsCount)
       .map(([item, count]) => `${item}: ${count}`)
       .join(', ') || '-';
@@ -970,24 +988,18 @@ app.get('/export-excel', requireLogin, async (req, res) => {
       additionalItems: additionalItemsSummary,
     });
     summaryRow.font = { name: 'Arial', size: 10, bold: true };
-    summaryRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE6E6FA' },
-    };
+    summaryRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
     summaryRow.alignment = { vertical: 'middle', horizontal: 'left' };
     summaryRow.eachCell(cell => {
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
     });
-
     const fileName = `Meal_Update_B${user.batch}_${user.gender}_${selectedDate.toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     await workbook.xlsx.write(res);
     res.end();
-    console.log(`Excel exported: ${fileName}, Total Meals: ${totalMealsSum}, Lunch: ${totalLunch}, Dinner: ${totalDinner}, Daily: ${totalDailyMealCount}, Additional Items: ${additionalItemsSummary}`);
   } catch (error) {
-    console.error('Excel export error:', { message: error.message, stack: error.stack });
+    console.error('Excel export error:', error.message);
     res.status(500).send('Error exporting Excel');
   }
 });
@@ -995,39 +1007,23 @@ app.get('/export-excel', requireLogin, async (req, res) => {
 app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
   try {
     const { batch, gender, date } = req.query;
-    if (!date) {
-      console.error('Date parameter missing');
-      return res.status(400).send('Date parameter is required');
-    }
-
+    if (!date) return res.status(400).send('Date parameter is required');
     const selectedDate = new Date(date);
-    if (isNaN(selectedDate.getTime())) {
-      console.error(`Invalid date: ${date}`);
-      return res.status(400).send('Invalid date format');
-    }
+    if (isNaN(selectedDate.getTime())) return res.status(400).send('Invalid date format');
     selectedDate.setHours(0, 0, 0, 0);
-
     let query = {};
     if (batch && batch !== 'all') query.batch = batch;
     if (gender && gender !== 'all') query.gender = gender;
-
     const users = await User.find(query).sort({ batch: 1, classRoll: 1 }).lean();
-    if (!users.length) {
-      console.error(`No users found for batch: ${batch || 'all'}, gender: ${gender || 'all'}`);
-      return res.status(404).send('No users found');
-    }
-
+    if (!users.length) return res.status(404).send('No users found');
     const mealHistories = await MealHistory.find({
       userId: { $in: users.map(u => u._id) },
       date: selectedDate,
     }).lean();
-
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(`Meal_History_B${batch || 'All'}_${gender || 'All'}`);
     worksheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 7 }];
     worksheet.properties.defaultRowHeight = 20;
-
-    // Header
     worksheet.mergeCells('A1:H1');
     worksheet.getCell('A1').value = 'Satkhira Medical College';
     worksheet.getCell('A1').font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1038,13 +1034,11 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
     };
     worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
     worksheet.getRow(1).height = 50;
-
     worksheet.mergeCells('A2:H2');
     worksheet.getCell('A2').value = 'Meal History Report';
     worksheet.getCell('A2').font = { name: 'Arial', size: 14, bold: true };
     worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-    worksheet.getRow(2).height = 30;
-
+    worksheet.getRow(2).height = 25;
     worksheet.getCell('A3').value = `Batch: ${batch || 'All'}`;
     worksheet.getCell('A4').value = `Gender: ${gender || 'All'}`;
     worksheet.getCell('A5').value = `Date: ${selectedDate.toLocaleDateString('en-GB')}`;
@@ -1053,8 +1047,6 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
       worksheet.getCell(cell).font = { name: 'Arial', size: 12, bold: true };
       worksheet.getCell(cell).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
     });
-
-    // Table Headers
     worksheet.getRow(7).values = ['Class Roll', 'Name', 'Meal', 'Additional Items', 'Lunch Served', 'Dinner Served', 'Daily Meal Count', 'Total Meals'];
     worksheet.getRow(7).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     worksheet.getRow(7).fill = {
@@ -1074,22 +1066,11 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
       { key: 'dailyMealCount', width: 15 },
       { key: 'totalMeals', width: 18 },
     ];
-
-    // Data Rows
-    let rowIndex = 8;
-    let totalLunch = 0;
-    let totalDinner = 0;
-    let totalDailyMealCount = 0;
-    let totalMealsSum = 0;
+    let rowIndex = 8, totalLunch = 0, totalDinner = 0, totalDailyMealCount = 0, totalMealsSum = 0;
     const additionalItemsCount = {};
-
     for (const user of users) {
       const mealHistory = mealHistories.find(mh => mh.userId.toString() === user._id.toString()) || {
-        meal: 'Off',
-        additionalItems: [],
-        lunchServed: false,
-        dinnerServed: false,
-        dailyMealCount: 0,
+        meal: 'Off', additionalItems: [], lunchServed: false, dinnerServed: false, dailyMealCount: 0,
       };
       totalMealsSum += user.totalMealCount || 0;
       totalLunch += mealHistory.lunchServed ? 1 : 0;
@@ -1098,7 +1079,6 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
       mealHistory.additionalItems.forEach(item => {
         additionalItemsCount[item] = (additionalItemsCount[item] || 0) + 1;
       });
-
       const row = worksheet.addRow({
         classRoll: user.classRoll,
         name: user.name,
@@ -1116,25 +1096,14 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
       });
       rowIndex++;
     }
-
-    // Total Row (Cumulative)
-    const totalRow = worksheet.addRow({
-      name: 'Total (Cumulative)',
-      totalMeals: totalMealsSum,
-    });
+    const totalRow = worksheet.addRow({ name: 'Total (Cumulative)', totalMeals: totalMealsSum });
     totalRow.font = { name: 'Arial', size: 10, bold: true };
-    totalRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE6E6FA' },
-    };
+    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
     totalRow.alignment = { vertical: 'middle', horizontal: 'left' };
     totalRow.eachCell(cell => {
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
     });
     rowIndex++;
-
-    // Summary Row (Selected Date)
     const additionalItemsSummary = Object.entries(additionalItemsCount)
       .map(([item, count]) => `${item}: ${count}`)
       .join(', ') || '-';
@@ -1146,26 +1115,30 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
       additionalItems: additionalItemsSummary,
     });
     summaryRow.font = { name: 'Arial', size: 10, bold: true };
-    summaryRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE6E6FA' },
-    };
+    summaryRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
     summaryRow.alignment = { vertical: 'middle', horizontal: 'left' };
     summaryRow.eachCell(cell => {
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
     });
-
     const fileName = `Meal_History_B${batch || 'All'}_${gender || 'All'}_${selectedDate.toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     await workbook.xlsx.write(res);
     res.end();
-    console.log(`Meal history Excel exported: ${fileName}, Total Meals: ${totalMealsSum}, Lunch: ${totalLunch}, Dinner: ${totalDinner}, Daily: ${totalDailyMealCount}, Additional Items: ${additionalItemsSummary}`);
   } catch (error) {
-    console.error('Meal history export error:', { message: error.message, stack: error.stack });
+    console.error('Meal history export error:', error.message);
     res.status(500).send('Error exporting meal history Excel');
   }
+});
+
+app.get('/admin/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Session destroy error:', err.message);
+      return res.status(500).send('Error logging out');
+    }
+    res.redirect('/admin/login');
+  });
 });
 
 app.get('/logout', (req, res) => {
@@ -1177,9 +1150,6 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
   });
 });
-sidebar.classList.toggle('sidebar-open');
-const isOpen = sidebar.classList.contains('sidebar-open');
-document.getElementById('toggleSidebar').setAttribute('aria-expanded', isOpen);
 
 // Start Server
 const server = app.listen(PORT, '0.0.0.0', () => {
