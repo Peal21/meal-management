@@ -12,11 +12,11 @@ const rateLimit = require('express-rate-limit');
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://askpeal121:SecurePass2025@cluster0.teofx.mongodb.net/mealPlanner?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://askpeal121:<YOUR_PASSWORD>@cluster0.teofx.mongodb.net/mealPlanner?retryWrites=true&w=majority';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6';
 
 // Validate environment variables
-if (!MONGODB_URI.includes('SecurePass2025') && !process.env.MONGODB_URI) {
+if (!MONGODB_URI.includes('<YOUR_PASSWORD>') && !process.env.MONGODB_URI) {
   console.error('FATAL: MONGODB_URI is not set properly. Set it in environment variables.');
   process.exit(1);
 }
@@ -49,9 +49,6 @@ app.use(rateLimit({
   max: 100, // 100 requests per IP
   message: { error: 'Too many requests. Try again later.' },
 }));
-
-// Session Middleware with enhanced logging
-const isProduction = process.env.RENDER === 'true' || process.env.NODE_ENV === 'production';
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
@@ -62,40 +59,32 @@ app.use(session({
     ttl: 24 * 60 * 60, // 24 hours
   }).on('error', (err) => console.error('MongoStore error:', err.message)),
   cookie: {
-    secure: isProduction, // true for HTTPS on Render, false locally
+    secure: process.env.RENDER === 'true' || process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 24 * 60 * 60 * 1000,
   },
 }));
-app.use((req, res, next) => {
-  console.log(`Request: ${req.method} ${req.url}, SessionID: ${req.sessionID}, Admin: ${!!req.session.admin}, User: ${req.session.userId}, Staff: ${!!req.session.staff}`);
-  next();
-});
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Authentication Middleware
 const requireLogin = (req, res, next) => {
   if (!req.session.userId) {
-    console.log('Unauthorized user access attempt:', req.url);
-    return res.status(401).json({ error: 'Unauthorized: Please log in', redirect: '/login' });
+    return res.status(401).json({ error: 'Unauthorized: Please log in' });
   }
   next();
 };
 
 const requireAdmin = (req, res, next) => {
   if (!req.session.admin) {
-    console.log('Unauthorized admin access attempt:', req.url);
-    return res.status(401).json({ error: 'Unauthorized: Admin access required', redirect: '/admin/login' });
+    return res.status(401).json({ error: 'Unauthorized: Admin access required' });
   }
   next();
 };
 
 const requireStaff = (req, res, next) => {
   if (!req.session.staff) {
-    console.log('Unauthorized staff access attempt:', req.url);
-    return res.status(401).json({ error: 'Unauthorized: Staff access required', redirect: '/staff/login' });
+    return res.status(401).json({ error: 'Unauthorized: Staff access required' });
   }
   next();
 };
@@ -126,21 +115,12 @@ const mealHistorySchema = new mongoose.Schema({
 const staffSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
-  name: { type: String, trim: true },
-  isActive: { type: Boolean, default: true },
 }, { collection: 'staff' });
 
 const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
 }, { collection: 'admins' });
-
-const depositSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  amount: { type: Number, required: true, min: 0 },
-  status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
-  requestDate: { type: Date, default: Date.now },
-}, { collection: 'deposits' });
 
 userSchema.index({ classRoll: 1, batch: 1 }, { unique: true });
 mealHistorySchema.index({ userId: 1, date: 1 }, { unique: true });
@@ -149,7 +129,6 @@ const User = mongoose.model('User', userSchema);
 const MealHistory = mongoose.model('MealHistory', mealHistorySchema);
 const Staff = mongoose.model('Staff', staffSchema);
 const Admin = mongoose.model('Admin', adminSchema);
-const Deposit = mongoose.model('Deposit', depositSchema);
 
 // Cron Job: Daily meal count update at midnight Asia/Dhaka
 cron.schedule('0 0 * * *', async () => {
@@ -192,16 +171,6 @@ cron.schedule('0 0 * * *', async () => {
   }
 }, { scheduled: true, timezone: 'Asia/Dhaka' });
 
-// Session Check Route
-app.get('/api/check-session', (req, res) => {
-  console.log('Check session:', { sessionID: req.sessionID, isAdmin: !!req.session.admin, isStaff: !!req.session.staff, userId: req.session.userId });
-  res.json({
-    isAdmin: !!req.session.admin,
-    isStaff: !!req.session.staff,
-    isUser: !!req.session.userId,
-  });
-});
-
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -216,10 +185,7 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/admin/login', (req, res) => {
-  if (req.session.admin) {
-    return res.redirect('/admin/dashboard');
-  }
-  res.render('admin-login'); // Assumes admin-login.ejs exists
+  res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
 });
 
 app.get('/staff/login', (req, res) => {
@@ -238,7 +204,7 @@ app.get('/meal-dashboard', requireLogin, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId).lean();
     if (!user) {
-      return res.status(401).json({ error: 'User not found', redirect: '/login' });
+      return res.status(401).json({ error: 'User not found' });
     }
     res.json({
       name: user.name,
@@ -347,7 +313,6 @@ app.get('/api/meal-history/admin', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error fetching meal history' });
   }
 });
-
 app.get('/create-admin', async (req, res) => {
   try {
     if (await Admin.findOne({ email: 'admin@example.com' }).lean()) {
@@ -368,7 +333,7 @@ app.get('/create-staff', async (req, res) => {
       return res.status(400).send('Staff already exists');
     }
     const hashedPassword = await bcrypt.hash('staff123', 10);
-    await new Staff({ email: 'staff@example.com', password: hashedPassword, name: 'Staff Member' }).save();
+    await new Staff({ email: 'staff@example.com', password: hashedPassword }).save();
     res.send('Staff created successfully');
   } catch (error) {
     console.error('Create staff error:', error.message);
@@ -378,34 +343,20 @@ app.get('/create-staff', async (req, res) => {
 
 app.post('/admin/login', async (req, res) => {
   const { email, password } = req.body;
-  console.log('Admin login attempt:', email);
   try {
     if (!email || !password) {
-      console.log('Missing email or password');
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).send('Email and password required');
     }
     const admin = await Admin.findOne({ email }).lean();
-    if (!admin) {
-      console.log('Admin not found:', email);
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!admin || !(await bcrypt.compare(password, admin.password))) {
+      return res.status(401).send('Invalid credentials');
     }
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) {
-      console.log('Password mismatch for:', email);
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    req.session.admin = { id: admin._id, email: admin.email };
-    req.session.save(err => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json({ error: 'Failed to save session' });
-      }
-      console.log('Admin logged in:', req.session.admin);
-      res.json({ message: 'Login successful', redirect: '/admin/dashboard' });
-    });
+    req.session.admin = true;
+    await req.session.save();
+    res.redirect('/admin/dashboard');
   } catch (error) {
     console.error('Admin login error:', error.message);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).send('Server error');
   }
 });
 
@@ -413,23 +364,18 @@ app.post('/staff/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).send('Email and password required');
     }
     const staff = await Staff.findOne({ email }).lean();
     if (!staff || !(await bcrypt.compare(password, staff.password))) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).send('Invalid credentials');
     }
-    req.session.staff = { id: staff._id, email: staff.email };
-    req.session.save(err => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json({ error: 'Failed to save session' });
-      }
-      res.json({ message: 'Login successful', redirect: '/staff/serving' });
-    });
+    req.session.staff = true;
+    await req.session.save();
+    res.redirect('/staff/serving');
   } catch (error) {
     console.error('Staff login error:', error.message);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).send('Server error');
   }
 });
 
@@ -437,36 +383,31 @@ app.post('/signup', async (req, res) => {
   const { name, classRoll, email, password, gender, batch } = req.body;
   try {
     if (!name || !classRoll || !email || !password || !gender || !batch) {
-      return res.status(400).json({ error: 'All fields required' });
+      return res.status(400).send('All fields required');
     }
     if (await User.findOne({ email }).lean()) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).send('User already exists');
     }
     if (!['09', '10', '11', '12', '13'].includes(batch)) {
-      return res.status(400).json({ error: 'Invalid batch' });
+      return res.status(400).send('Invalid batch');
     }
     if (!['Male', 'Female'].includes(gender)) {
-      return res.status(400).json({ error: 'Invalid gender' });
+      return res.status(400).send('Invalid gender');
     }
     if (classRoll < 1 || classRoll > 100) {
-      return res.status(400).json({ error: 'Invalid class roll' });
+      return res.status(400).send('Invalid class roll');
     }
     if (await User.findOne({ classRoll, batch }).lean()) {
-      return res.status(400).json({ error: 'Class roll exists for this batch' });
+      return res.status(400).send('Class roll exists for this batch');
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await new User({ name, classRoll, email, password: hashedPassword, gender, batch }).save();
     req.session.userId = user._id.toString();
-    req.session.save(err => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json({ error: 'Failed to save session' });
-      }
-      res.json({ message: 'Signup successful', redirect: '/meal-dashboard.html' });
-    });
+    await req.session.save();
+    res.redirect('/meal-dashboard.html');
   } catch (error) {
     console.error('Signup error:', error.message);
-    res.status(500).json({ error: 'Error signing up' });
+    res.status(500).send('Error signing up');
   }
 });
 
@@ -474,23 +415,18 @@ app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).send('Email and password required');
     }
     const user = await User.findOne({ email }).lean();
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).send('Invalid credentials');
     }
     req.session.userId = user._id.toString();
-    req.session.save(err => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json({ error: 'Failed to save session' });
-      }
-      res.json({ message: 'Login successful', redirect: '/meal-dashboard.html' });
-    });
+    await req.session.save();
+    res.redirect('/meal-dashboard.html');
   } catch (error) {
     console.error('Login error:', error.message);
-    res.status(500).json({ error: 'Error logging in' });
+    res.status(500).send('Error logging in');
   }
 });
 
@@ -510,7 +446,7 @@ app.post('/meal-update', requireLogin, async (req, res) => {
     }
     const user = await User.findById(req.session.userId).lean();
     if (!user) {
-      return res.status(401).json({ error: 'User not found', redirect: '/login' });
+      return res.status(401).json({ error: 'User not found' });
     }
     const additionalItemsArray = Array.isArray(additionalItems) ? additionalItems.filter(Boolean) : [additionalItems].filter(Boolean);
     let mealHistory = await MealHistory.findOne({ userId: req.session.userId, date: selectedDate }).lean();
@@ -560,7 +496,7 @@ app.get('/admin/dashboard', requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Admin dashboard error:', error.message);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).send('Server error');
   }
 });
 
@@ -859,195 +795,6 @@ app.post('/api/meal/staff-update', requireStaff, async (req, res) => {
   }
 });
 
-// Admin API Routes for Dashboard
-app.get('/api/admin/batches', requireAdmin, async (req, res) => {
-  try {
-    res.json(['09', '10', '11', '12', '13']);
-  } catch (error) {
-    console.error('Fetch batches error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch batches' });
-  }
-});
-
-app.get('/api/admin/genders', requireAdmin, async (req, res) => {
-  try {
-    res.json(['Male', 'Female']);
-  } catch (error) {
-    console.error('Fetch genders error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch genders' });
-  }
-});
-
-app.get('/api/admin/users', requireAdmin, async (req, res) => {
-  try {
-    const { batch, gender } = req.query;
-    let query = {};
-    if (batch && batch !== 'all') query.batch = batch;
-    if (gender && gender !== 'all') query.gender = gender;
-    const users = await User.find(query).sort({ batch: 1, classRoll: 1 }).lean();
-    res.json({ users, total: users.length });
-  } catch (error) {
-    console.error('Fetch users error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-app.post('/api/admin/users', requireAdmin, async (req, res) => {
-  const { name, classRoll, email, password, gender, batch } = req.body;
-  try {
-    if (!name || !classRoll || !email || !password || !gender || !batch) {
-      return res.status(400).json({ error: 'All fields required' });
-    }
-    if (await User.findOne({ email }).lean()) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-    if (!['09', '10', '11', '12', '13'].includes(batch)) {
-      return res.status(400).json({ error: 'Invalid batch' });
-    }
-    if (!['Male', 'Female'].includes(gender)) {
-      return res.status(400).json({ error: 'Invalid gender' });
-    }
-    if (classRoll < 1 || classRoll > 100) {
-      return res.status(400).json({ error: 'Invalid class roll' });
-    }
-    if (await User.findOne({ classRoll, batch }).lean()) {
-      return res.status(400).json({ error: 'Class roll exists for this batch' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await new User({ name, classRoll, email, password: hashedPassword, gender, batch }).save();
-    res.json({ message: 'User added successfully' });
-  } catch (error) {
-    console.error('Add user error:', error.message);
-    res.status(500).json({ error: 'Failed to add user' });
-  }
-});
-
-app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const user = await User.findByIdAndDelete(id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    await MealHistory.deleteMany({ userId: id });
-    await Deposit.deleteMany({ userId: id });
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Delete user error:', error.message);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
-app.get('/api/admin/staff', requireAdmin, async (req, res) => {
-  try {
-    const staff = await Staff.find().lean();
-    res.json({ staff, total: staff.length });
-  } catch (error) {
-    console.error('Fetch staff error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch staff' });
-  }
-});
-
-app.post('/api/admin/staff', requireAdmin, async (req, res) => {
-  const { name, email, password } = req.body;
-  try {
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'All fields required' });
-    }
-    if (await Staff.findOne({ email }).lean()) {
-      return res.status(400).json({ error: 'Staff already exists' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await new Staff({ name, email, password: hashedPassword }).save();
-    res.json({ message: 'Staff added successfully' });
-  } catch (error) {
-    console.error('Add staff error:', error.message);
-    res.status(500).json({ error: 'Failed to add staff' });
-  }
-});
-
-app.put('/api/admin/staff/:id/toggle-status', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const staff = await Staff.findById(id);
-    if (!staff) {
-      return res.status(404).json({ error: 'Staff not found' });
-    }
-    staff.isActive = !staff.isActive;
-    await staff.save();
-    res.json({ message: `Staff ${staff.isActive ? 'activated' : 'deactivated'} successfully` });
-  } catch (error) {
-    console.error('Toggle staff status error:', error.message);
-    res.status(500).json({ error: 'Failed to toggle staff status' });
-  }
-});
-
-app.delete('/api/admin/staff/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const staff = await Staff.findByIdAndDelete(id);
-    if (!staff) {
-      return res.status(404).json({ error: 'Staff not found' });
-    }
-    res.json({ message: 'Staff deleted successfully' });
-  } catch (error) {
-    console.error('Delete staff error:', error.message);
-    res.status(500).json({ error: 'Failed to delete staff' });
-  }
-});
-
-app.get('/api/admin/deposits', requireAdmin, async (req, res) => {
-  try {
-    const deposits = await Deposit.find()
-      .populate('userId', 'name classRoll')
-      .lean();
-    const pending = deposits.filter(d => d.status === 'Pending').length;
-    res.json({ deposits, pending });
-  } catch (error) {
-    console.error('Fetch deposits error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch deposits' });
-  }
-});
-
-app.post('/api/admin/deposits/:id/approve', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deposit = await Deposit.findById(id);
-    if (!deposit) {
-      return res.status(404).json({ error: 'Deposit not found' });
-    }
-    if (deposit.status !== 'Pending') {
-      return res.status(400).json({ error: 'Deposit already actioned' });
-    }
-    deposit.status = 'Approved';
-    await deposit.save();
-    await User.updateOne({ _id: deposit.userId }, { $inc: { deposit: deposit.amount } });
-    res.json({ message: 'Deposit approved successfully' });
-  } catch (error) {
-    console.error('Approve deposit error:', error.message);
-    res.status(500).json({ error: 'Failed to approve deposit' });
-  }
-});
-
-app.post('/api/admin/deposits/:id/reject', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deposit = await Deposit.findById(id);
-    if (!deposit) {
-      return res.status(404).json({ error: 'Deposit not found' });
-    }
-    if (deposit.status !== 'Pending') {
-      return res.status(400).json({ error: 'Deposit already actioned' });
-    }
-    deposit.status = 'Rejected';
-    await deposit.save();
-    res.json({ message: 'Deposit rejected successfully' });
-  } catch (error) {
-    console.error('Reject deposit error:', error.message);
-    res.status(500).json({ error: 'Failed to reject deposit' });
-  }
-});
-
 app.post('/api/users/:id/update', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { deposit, totalMealCount } = req.body;
@@ -1066,12 +813,22 @@ app.post('/api/users/:id/update', requireAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find().sort({ batch: 1, classRoll: 1 }).lean();
+    res.json(users);
+  } catch (error) {
+    console.error('Fetch users error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
 app.get('/export-excel', requireLogin, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId).lean();
     if (!user) {
       console.error(`User not found: ${req.session.userId}`);
-      return res.status(404).json({ error: 'User not found', redirect: '/login' });
+      return res.status(404).send('User not found');
     }
 
     const { date } = req.query;
@@ -1081,7 +838,7 @@ app.get('/export-excel', requireLogin, async (req, res) => {
     const users = await User.find({ batch: user.batch, gender: user.gender }).sort({ classRoll: 1 }).lean();
     if (!users.length) {
       console.error(`No users found for batch: ${user.batch}, gender: ${user.gender}`);
-      return res.status(404).json({ error: 'No users found' });
+      return res.status(404).send('No users found');
     }
 
     const mealHistories = await MealHistory.find({
@@ -1231,7 +988,7 @@ app.get('/export-excel', requireLogin, async (req, res) => {
     console.log(`Excel exported: ${fileName}, Total Meals: ${totalMealsSum}, Lunch: ${totalLunch}, Dinner: ${totalDinner}, Daily: ${totalDailyMealCount}, Additional Items: ${additionalItemsSummary}`);
   } catch (error) {
     console.error('Excel export error:', { message: error.message, stack: error.stack });
-    res.status(500).json({ error: 'Error exporting Excel' });
+    res.status(500).send('Error exporting Excel');
   }
 });
 
@@ -1240,13 +997,13 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
     const { batch, gender, date } = req.query;
     if (!date) {
       console.error('Date parameter missing');
-      return res.status(400).json({ error: 'Date parameter is required' });
+      return res.status(400).send('Date parameter is required');
     }
 
     const selectedDate = new Date(date);
     if (isNaN(selectedDate.getTime())) {
       console.error(`Invalid date: ${date}`);
-      return res.status(400).json({ error: 'Invalid date format' });
+      return res.status(400).send('Invalid date format');
     }
     selectedDate.setHours(0, 0, 0, 0);
 
@@ -1257,7 +1014,7 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
     const users = await User.find(query).sort({ batch: 1, classRoll: 1 }).lean();
     if (!users.length) {
       console.error(`No users found for batch: ${batch || 'all'}, gender: ${gender || 'all'}`);
-      return res.status(404).json({ error: 'No users found' });
+      return res.status(404).send('No users found');
     }
 
     const mealHistories = await MealHistory.find({
@@ -1407,30 +1164,16 @@ app.get('/admin/export-meal-history', requireAdmin, async (req, res) => {
     console.log(`Meal history Excel exported: ${fileName}, Total Meals: ${totalMealsSum}, Lunch: ${totalLunch}, Dinner: ${totalDinner}, Daily: ${totalDailyMealCount}, Additional Items: ${additionalItemsSummary}`);
   } catch (error) {
     console.error('Meal history export error:', { message: error.message, stack: error.stack });
-    res.status(500).json({ error: 'Error exporting meal history Excel' });
+    res.status(500).send('Error exporting meal history Excel');
   }
 });
 
-app.get('/admin/logout', (req, res) => {
-  console.log('Admin logout attempt:', req.session.admin);
-  req.session.destroy(err => {
-    if (err) {
-      console.error('Session destroy error:', err);
-      return res.status(500).json({ error: 'Failed to logout' });
-    }
-    console.log('Session destroyed successfully');
-    res.redirect('/admin/login');
-  });
-});
-
 app.get('/logout', (req, res) => {
-  console.log('User logout attempt:', { userId: req.session.userId, admin: !!req.session.admin, staff: !!req.session.staff });
   req.session.destroy(err => {
     if (err) {
-      console.error('Session destroy error:', err);
-      return res.status(500).json({ error: 'Failed to logout' });
+      console.error('Session destroy error:', err.message);
+      return res.status(500).send('Error logging out');
     }
-    console.log('Session destroyed successfully');
     res.redirect('/login');
   });
 });
