@@ -13,107 +13,148 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: rgba(0, 0, 0, 0.4);
       justify-content: center;
       align-items: center;
-      z-index: 50;
+      z-index: 1000;
     }
     .modal-content {
       background-color: white;
       padding: 24px;
       border-radius: 8px;
-      width: 90%;
-      max-width: 600px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 600px;
+      max-width: 90%;
+      box-shadow: 0 4px 8px rgba(0, 0, 0.2);
     }
-    .sidebar {
-      transition: transform 0.3s ease-in-out;
+    .menu-container {
+      position: relative;
+      z-index: 10;
     }
-    .sidebar-hidden {
-      transform: translateX(-100%);
+    .menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      min-width: 200px;
+      z-index: 20;
+      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    .menu.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .menu-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0,0.5);
+      z-index: 15;
+    }
+    .menu.active + .menu-backdrop {
+      display: block;
+    }
+    .three-dot-menu {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 24px;
+      height: 18px;
+    }
+    .three-dot-menu span {
+      width: 100%;
+      height: 4px;
+      background-color: white;
+      border-radius: 2px;
     }
   </style>
 </head>
-<body class="bg-gray-100 font-sans">
-  <!-- Sidebar -->
-  <div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-800 text-white flex flex-col p-4 sidebar">
-    <h2 class="text-2xl font-bold mb-6">Admin Panel</h2>
-    <nav class="flex-1">
-      <button onclick="switchTab('users')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Users</button>
-      <button onclick="switchTab('mealHistory')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Meal History</button>
-      <button onclick="switchTab('staff')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Staff</button>
-      <button onclick="switchTab('deposits')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Deposits</button>
-      <a href="/admin/logout" class="w-full text-left py-2 px-4 hover:bg-red-600 rounded-md mt-auto">Logout</a>
-    </nav>
-  </div>
+<body class="bg-gray-50 font-sans">
+  <!-- Header -->
+  <header class="bg-gray-100 shadow p-4 flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+    <div class="menu-container">
+      <button id="toggleMenu" class="bg-gray-800 text-white p-2 rounded-lg flex items-center justify-center" aria-label="Toggle menu" aria-expanded="false">
+        <div class="three-dot-menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </button>
+      <nav id="menu" class="menu">
+        <button onclick="navigateToTab('users')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Users</button>
+        <button onclick="navigateToTab('mealHistory')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Meal History</button>
+        <button onclick="navigateToTab('staff')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Staff</button>
+        <button onclick="navigateToTab('deposits')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Deposits</button>
+        <a href="/admin/logout" class="block w-full text-left py-2 px-4 hover:bg-red-100 text-red-600">Logout</a>
+      </nav>
+      <div id="menuBackdrop" class="menu-backdrop"></div>
+    </div>
+  </header>
 
   <!-- Main Content -->
-  <div class="ml-0 md:ml-64 p-6 transition-all duration-300">
-    <button id="toggleSidebar" class="md:hidden bg-gray-800 text-white p-2 rounded-md mb-4">
-      ☰ Menu
-    </button>
-    <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Admin Dashboard</h1>
-
-    <!-- Tabs -->
+  <div class="p-6 main-content">
+    <!-- Users Tab -->
     <div id="usersTab" class="tab-content">
-      <!-- Filters and Buttons -->
       <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div class="flex gap-4 flex-wrap">
-          <select id="userBatchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <select id="userBatchFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="all">All Batches</option>
             <% batches.forEach(batch => { %>
               <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
             <% }) %>
           </select>
-          <select id="userGenderFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <select id="userGenderFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="all">All Genders</option>
             <% genders.forEach(gender => { %>
               <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
             <% }) %>
           </select>
         </div>
-        <div class="flex gap-4">
-          <button onclick="openAddUserModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-            Add User
-          </button>
-        </div>
+        <button onclick="openAddUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+          Add User
+        </button>
       </div>
-
-      <!-- Users Table -->
-      <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+      <div class="overflow-x-auto bg-white shadow-lg rounded-lg">
         <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+          <thead class="bg-gray-100">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Roll</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deposit</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Meals</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Class Roll</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Batch</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Gender</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Deposit</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Total Meals</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             <% if (users.length === 0) { %>
               <tr>
-                <td colspan="7" class="px-6 py-4 text-center text-sm text-red-500">
-                  No users found for the selected filters.
-                </td>
+                <td colspan="7" class="px-6 py-4 text-center text-sm text-red-600">No users found.</td>
               </tr>
             <% } else { %>
               <% users.forEach(user => { %>
                 <tr class="hover:bg-gray-50">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.name %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.classRoll %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.batch %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.gender %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.deposit %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.totalMealCount %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
-                    <button onclick='openEditUserModal("<%= user._id %>", <%= user.deposit %>, <%= user.totalMealCount %>, "<%= user.name.replace(/"/g, '\\"') %>")' class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.name %></td>
+                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.classRoll %></td>
+                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.batch %></td>
+                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.gender %></td>
+                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.deposit %></td>
+                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.totalMealCount %></td>
+                  <td class="px-6 py-4 text-sm flex gap-2">
+                    <button onclick='openEditUserModal("<%= user._id %>", <%= user.deposit %>, <%= user.totalMealCount %>, "<%= user.name.replace(/"/g, '\\"') %>")' class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
                       Edit
                     </button>
-                    <button onclick='deleteUser("<%= user._id %>")' class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+                    <button onclick='deleteUser("<%= user._id %>")' class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
                       Delete
                     </button>
                   </td>
@@ -125,690 +166,606 @@
       </div>
     </div>
 
+    <!-- Meal History Tab -->
     <div id="mealHistoryTab" class="tab-content hidden">
-      <!-- Filters and Buttons -->
       <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div class="flex gap-4 flex-wrap">
-          <select id="mealBatchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <select id="mealBatchFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="all">All Batches</option>
             <% batches.forEach(batch => { %>
               <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
             <% }) %>
           </select>
-          <select id="mealGenderFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <select id="mealGenderFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="all">All Genders</option>
             <% genders.forEach(gender => { %>
               <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
             <% }) %>
           </select>
-          <input type="date" id="dateFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="<%= new Date().toISOString().split('T')[0] %>">
+          <input type="date" id="dateFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="<%= new Date().toISOString().split('T')[0] %>">
         </div>
         <div class="flex gap-4">
-          <button onclick="fetchMealHistory()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+          <button onclick="fetchMealHistory()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
             Refresh Data
           </button>
-          <button onclick="downloadMealHistoryExcel()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+          <button onclick="downloadMealHistoryExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
             Download as Excel
           </button>
         </div>
       </div>
-
-      <!-- Meal History Table -->
-      <div id="mealHistoryContainer" class="overflow-x-auto bg-white shadow-md rounded-lg mb-6">
+      <div id="mealHistoryContainer" class="overflow-x-auto bg-white shadow-lg rounded-lg">
         <table id="mealHistoryTable" class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+          <thead class="bg-gray-100">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Roll</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meal</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Additional Items</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lunch Served</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinner Served</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Daily Meal Count</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Meals</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Class Roll</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Meal</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Additional Items</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Lunch Served</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Dinner Served</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Daily Meal Count</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Total Meals</th>
             </tr>
           </thead>
-          <tbody id="mealHistoryBody" class="bg-white divide-y divide-gray-200">
-            <!-- Data will be populated via JavaScript -->
-          </tbody>
+          <tbody id="mealHistoryBody" class="bg-white divide-y divide-gray-200"></tbody>
         </table>
       </div>
     </div>
 
+    <!-- Staff Tab -->
     <div id="staffTab" class="tab-content hidden">
-      <!-- Staff Filters and Buttons -->
       <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <div class="flex gap-4 flex-wrap">
-          <input type="text" id="staffSearch" placeholder="Search by name or email" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-        </div>
-        <div class="flex gap-4">
-          <button onclick="openAddStaffModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-            Add Staff
-          </button>
-        </div>
+        <input type="text" id="staffSearch" placeholder="Search by name or email" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-full sm:w-auto">
+        <button onclick="openAddStaffModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+          Add Staff
+        </button>
       </div>
-
-      <!-- Staff Table -->
-      <div id="staffContainer" class="overflow-x-auto bg-white shadow-md rounded-lg">
+      <div id="staffContainer" class="overflow-x-auto bg-white shadow-lg rounded-lg">
         <table id="staffTable" class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+          <thead class="bg-gray-100">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Email</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody id="staffBody" class="bg-white divide-y divide-gray-200">
-            <!-- Data will be populated via JavaScript -->
-          </tbody>
+          <tbody id="staffBody" class="bg-white divide-y divide-gray-200"></tbody>
         </table>
       </div>
     </div>
 
+    <!-- Deposits Tab -->
     <div id="depositsTab" class="tab-content hidden">
-      <!-- Deposits Filters and Buttons -->
       <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <div class="flex gap-4 flex-wrap">
-          <select id="depositStatusFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="all">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-          </select>
-        </div>
-        <div class="flex gap-4">
-          <button onclick="fetchDeposits()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-            Refresh Deposits
-          </button>
-        </div>
+        <select id="depositStatusFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <option value="all">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <button onclick="fetchDeposits()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+          Refresh Deposits
+        </button>
       </div>
-
-      <!-- Deposits Table -->
-      <div id="depositsContainer" class="overflow-x-auto bg-white shadow-md rounded-lg">
+      <div id="depositsContainer" class="overflow-x-auto bg-white shadow-lg rounded-lg">
         <table id="depositsTable" class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+          <thead class="bg-gray-100">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">User</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Amount</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Request Date</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody id="depositsBody" class="bg-white divide-y divide-gray-200">
-            <!-- Data will be populated via JavaScript -->
-          </tbody>
+          <tbody id="depositsBody" class="bg-white divide-y divide-gray-200"></tbody>
         </table>
       </div>
     </div>
-  </div>
 
-  <!-- Add User Modal -->
-  <div id="addUserModal" class="modal">
-    <div class="modal-content">
-      <h2 class="text-xl font-bold mb-4">Add New User</h2>
-      <form id="addUserForm" class="space-y-4">
-        <div>
-          <label for="addName" class="block text-sm font-medium text-gray-700">Name</label>
-          <input type="text" id="addName" name="name" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div>
-          <label for="addClassRoll" class="block text-sm font-medium text-gray-700">Class Roll</label>
-          <input type="number" id="addClassRoll" name="classRoll" min="1" max="100" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div>
-          <label for="addEmail" class="block text-sm font-medium text-gray-700">Email</label>
-          <input type="email" id="addEmail" name="email" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div>
-          <label for="addPassword" class="block text-sm font-medium text-gray-700">Password</label>
-          <input type="password" id="addPassword" name="password" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div>
-          <label for="addGender" class="block text-sm font-medium text-gray-700">Gender</label>
-          <select id="addGender" name="gender" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-            <option value="">Select Gender</option>
-            <% genders.forEach(gender => { %>
-              <option value="<%= gender %>"><%= gender %></option>
-            <% }) %>
-          </select>
-        </div>
-        <div>
-          <label for="addBatch" class="block text-sm font-medium text-gray-700">Batch</label>
-          <select id="addBatch" name="batch" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-            <option value="">Select Batch</option>
-            <% batches.forEach(batch => { %>
-              <option value="<%= batch %>"><%= batch %></option>
-            <% }) %>
-          </select>
-        </div>
-        <div class="flex justify-end gap-4">
-          <button type="button" onclick="closeAddUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition duration-200">Cancel</button>
-          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">Add</button>
-        </div>
-      </form>
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4">Add New User</h2>
+        <form id="addUserForm" class="space-y-4">
+          <div>
+            <label for="addName" class="block text-sm font-medium text-gray-700">Name</label>
+            <input type="text" id="addName" name="name" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="addClassRoll" class="block text-sm font-medium text-gray-700">Class Roll</label>
+            <input type="number" id="addClassRoll" name="classRoll" min="1" max="100" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="addEmail" class="block text-sm font-medium text-gray-700">Email</label>
+            <input type="email" id="addEmail" name="email" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="addPassword" class="block text-sm font-medium text-gray-700">Password</label>
+            <input type="password" id="addPassword" name="password" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="addGender" class="block text-sm font-medium text-gray-700">Gender</label>
+            <select id="addGender" name="gender" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+              <option value="">Select Gender</option>
+              <% genders.forEach(gender => { %>
+                <option value="<%= gender %>"><%= gender %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label for="addBatch" class="block text-sm font-medium text-gray-700">Batch</label>
+            <select id="addBatch" name="batch" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+              <option value="">Select Batch</option>
+              <% batches.forEach(batch => { %>
+                <option value="<%= batch %>"><%= batch %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="flex justify-end gap-4">
+            <button type="button" onclick="closeAddUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">Cancel</button>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">Add</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <!-- Edit User Modal -->
-  <div id="editUserModal" class="modal">
-    <div class="modal-content">
-      <h2 class="text-xl font-bold mb-4">Edit User: <span id="editUserName"></span></h2>
-      <form id="editUserForm" class="space-y-4">
-        <div>
-          <label for="editDeposit" class="block text-sm font-medium text-gray-700">Deposit</label>
-          <input type="number" id="editDeposit" name="deposit" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div>
-          <label for="editTotalMealCount" class="block text-sm font-medium text-gray-700">Total Meal Count</label>
-          <input type="number" id="editTotalMealCount" name="totalMealCount" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <input type="hidden" id="editUserId" name="userId">
-        <div class="flex justify-end gap-4">
-          <button type="button" onclick="closeEditUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition duration-200">Cancel</button>
-          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">Save</button>
-        </div>
-      </form>
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4">Edit User: <span id="editUserName"></span></h2>
+        <form id="editUserForm" class="space-y-4">
+          <div>
+            <label for="editDeposit" class="block text-sm font-medium text-gray-700">Deposit</label>
+            <input type="number" id="editDeposit" name="deposit" min="0" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="editTotalMealCount" class="block text-sm font-medium text-gray-700">Total Meal Count</label>
+            <input type="number" id="editTotalMealCount" name="totalMealCount" min="0" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <input type="hidden" id="editUserId" name="userId">
+          <div class="flex justify-end gap-4">
+            <button type="button" onclick="closeEditUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">Cancel</button>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">Save</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <!-- Add Staff Modal -->
-  <div id="addStaffModal" class="modal">
-    <div class="modal-content">
-      <h2 class="text-xl font-bold mb-4">Add New Staff</h2>
-      <form id="addStaffForm" class="space-y-4">
-        <div>
-          <label for="addStaffName" class="block text-sm font-medium text-gray-700">Name</label>
-          <input type="text" id="addStaffName" name="name" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div>
-          <label for="addStaffEmail" class="block text-sm font-medium text-gray-700">Email</label>
-          <input type="email" id="addStaffEmail" name="email" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div>
-          <label for="addStaffPassword" class="block text-sm font-medium text-gray-700">Password</label>
-          <input type="password" id="addStaffPassword" name="password" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        </div>
-        <div class="flex justify-end gap-4">
-          <button type="button" onclick="closeAddStaffModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition duration-200">Cancel</button>
-          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">Add</button>
-        </div>
-      </form>
+    <!-- Add Staff Modal -->
+    <div id="addStaffModal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4">Add New Staff</h2>
+        <form id="addStaffForm" class="space-y-4">
+          <div>
+            <label for="addStaffName" class="block text-sm font-medium text-gray-700">Name</label>
+            <input type="text" id="addStaffName" name="name" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="addStaffEmail" class="block text-sm font-medium text-gray-700">Email</label>
+            <input type="email" id="addStaffEmail" name="email" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="addStaffPassword" class="block text-sm font-medium text-gray-700">Password</label>
+            <input type="password" id="addStaffPassword" name="password" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div class="flex justify-end gap-4">
+            <button type="button" onclick="closeAddStaffModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">Cancel</button>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">Add</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <script>
-    // Sidebar toggle
-    document.getElementById('toggleSidebar').addEventListener('click', () => {
-      const sidebar = document.getElementById('sidebar');
-      sidebar.classList.toggle('sidebar-hidden');
-    });
+    <script>
+      // Menu Toggle
+      const toggleMenu = () => {
+        const menu = document.getElementById('menu');
+        const backdrop = document.getElementById('menuBackdrop');
+        const toggleButton = document.getElementById('toggleMenu');
+        const isOpen = menu.classList.toggle('active');
+        toggleButton.setAttribute('aria-expanded', isOpen);
+        if (isOpen) {
+          document.body.style.overflow = 'hidden';
+          backdrop.style.display = 'block';
+        } else {
+          document.body.style.overflow = 'auto';
+          backdrop.style.display = 'none';
+        }
+      };
 
-    // Tab switching
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
-      document.getElementById(`${tabId}Tab`).classList.remove('hidden');
-      if (tabId === 'mealHistory') fetchMealHistory();
-      if (tabId === 'staff') fetchStaff();
-      if (tabId === 'deposits') fetchDeposits();
-    }
+      document.getElementById('toggleMenu').addEventListener('click', toggleMenu);
+      document.getElementById('menuBackdrop').addEventListener('click', toggleMenu);
 
-    // User Filters
-    const userBatchFilter = document.getElementById('userBatchFilter');
-    const userGenderFilter = document.getElementById('userGenderFilter');
-    [userBatchFilter, userGenderFilter].forEach(filter => {
-      filter.addEventListener('change', () => {
-        const batchValue = userBatchFilter.value;
-        const genderValue = userGenderFilter.value;
-        console.log('User filter selected:', { batch: batchValue, gender: genderValue });
+      // Tab Navigation
+      function navigateToTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+        document.getElementById(`${tabId}Tab`).classList.remove('hidden');
+        toggleMenu(); // Close menu after navigation
+        if (tabId === 'mealHistory') fetchMealHistory();
+        if (tabId === 'staff') fetchStaff();
+        if (tabId === 'deposits') fetchDeposits();
+      }
+
+      // User Filters
+      const userBatchFilter = document.getElementById('userBatchFilter');
+      const userGenderFilter = document.getElementById('userGenderFilter');
+      [userBatchFilter, userGenderFilter].forEach(filter => {
+        filter.addEventListener('change', () => {
+          const batch = userBatchFilter.value;
+          const gender = userGenderFilter.value;
+          const params = new URLSearchParams();
+          if (batch !== 'all') params.append('batch', batch);
+          if (gender !== 'all') params.append('gender', gender);
+          window.location.href = `/admin/dashboard?${params.toString()}`;
+        });
+      });
+
+      // Meal History Filters
+      const mealBatchFilter = document.getElementById('mealBatchFilter');
+      const mealGenderFilter = document.getElementById('mealGenderFilter');
+      const dateFilter = document.getElementById('dateFilter');
+      [mealBatchFilter, mealGenderFilter, dateFilter].forEach(filter => {
+        filter.addEventListener('change', fetchMealHistory);
+      });
+
+      // Fetch Meal History
+      async function fetchMealHistory() {
+        const batch = mealBatchFilter.value;
+        const gender = mealGenderFilter.value;
+        const date = dateFilter.value;
+        if (!date) return alert('Please select a date.');
         const params = new URLSearchParams();
-        if (batchValue !== 'all') params.append('batch', batchValue);
-        if (genderValue !== 'all') params.append('gender', genderValue);
-        window.location.href = `/admin/dashboard?${params.toString()}`;
-      });
-    });
-
-    // Meal History Filters
-    const mealBatchFilter = document.getElementById('mealBatchFilter');
-    const mealGenderFilter = document.getElementById('mealGenderFilter');
-    const dateFilter = document.getElementById('dateFilter');
-    [mealBatchFilter, mealGenderFilter, dateFilter].forEach(filter => {
-      filter.addEventListener('change', fetchMealHistory);
-    });
-
-    // Fetch Meal History
-    async function fetchMealHistory() {
-      const batchValue = mealBatchFilter.value;
-      const genderValue = mealGenderFilter.value;
-      const dateValue = dateFilter.value;
-      console.log('Fetching meal history with:', { batch: batchValue, gender: genderValue, date: dateValue });
-      if (!dateValue) {
-        alert('Please select a date for the report');
-        return;
-      }
-
-      const params = new URLSearchParams();
-      if (batchValue !== 'all') params.append('batch', batchValue);
-      if (genderValue !== 'all') params.append('gender', genderValue);
-      params.append('date', dateValue);
-
-      try {
-        const response = await fetch(`/api/meal-history/admin?${params.toString()}`);
-        const data = await response.json();
-        console.log('Meal history data:', data);
-        if (response.ok) {
-          renderMealHistoryTable(data);
-        } else {
-          alert(data.error || 'Failed to fetch meal history');
-          document.getElementById('mealHistoryBody').innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-500">No data found</td></tr>`;
+        if (batch !== 'all') params.append('batch', batch);
+        if (gender !== 'all') params.append('gender', gender);
+        params.append('date', date);
+        try {
+          const response = await fetch(`/api/meal-history/admin?${params.toString()}`);
+          const data = await response.json();
+          if (response.ok) {
+            renderMealHistoryTable(data);
+          } else {
+            alert(data.error || 'Failed to fetch meal history.');
+            document.getElementById('mealHistoryBody').innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-600">No data found.</td></tr>';
+          }
+        } catch (err) {
+          alert('Error fetching meal history.');
+          document.getElementById('mealHistoryBody').innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-600">Error loading data.</td></tr>';
         }
-      } catch (err) {
-        console.error('Fetch error:', err);
-        alert('Error fetching meal history');
-        document.getElementById('mealHistoryBody').innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-500">Error loading data</td></tr>`;
       }
-    }
 
-    // Render Meal History Table
-    function renderMealHistoryTable(data) {
-      const tbody = document.getElementById('mealHistoryBody');
-      tbody.innerHTML = '';
-      data.users.forEach(user => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        row.innerHTML = `
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.classRoll}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.name}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.meal}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.additionalItems || '-'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.lunchServed ? 'Yes' : 'No'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.dinnerServed ? 'Yes' : 'No'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.dailyMealCount}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.totalMealCount}</td>
+      // Render Meal History Table
+      function renderMealHistoryTable(data) {
+        const tbody = document.getElementById('mealHistoryBody');
+        tbody.innerHTML = '';
+        data.users.forEach(user => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 text-sm text-gray-900">${user.classRoll}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${user.name}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${user.meal}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${user.additionalItems || '-'}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${user.lunchServed ? 'Yes' : 'No'}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${user.dinnerServed ? 'Yes' : 'No'}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${user.dailyMealCount}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${user.totalMealCount}</td>
+          `;
+          tbody.appendChild(row);
+        });
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'bg-gray-100 font-semibold';
+        totalRow.innerHTML = `
+          <td class="px-6 py-4 text-sm text-gray-900">Total (Cumulative)</td>
+          <td colspan="6"></td>
+          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.totalMeals}</td>
         `;
-        tbody.appendChild(row);
-      });
-      const totalRow = document.createElement('tr');
-      totalRow.className = 'bg-gray-100 font-semibold';
-      totalRow.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Total (Cumulative)</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.totalMeals}</td>
-      `;
-      tbody.appendChild(totalRow);
-      const summaryRow = document.createElement('tr');
-      summaryRow.className = 'bg-gray-100 font-semibold';
-      summaryRow.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Summary (${data.date})</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.additionalItems}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.lunchServed}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.dinnerServed}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.dailyMealCount}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"></td>
-      `;
-      tbody.appendChild(summaryRow);
-    }
-
-    // Download Meal History Excel
-    function downloadMealHistoryExcel() {
-      const batchValue = mealBatchFilter.value;
-      const genderValue = mealGenderFilter.value;
-      const dateValue = dateFilter.value;
-      console.log('Downloading meal history with:', { batch: batchValue, gender: genderValue, date: dateValue });
-      if (!dateValue) {
-        alert('Please select a date for the report');
-        return;
-      }
-      const params = new URLSearchParams();
-      if (batchValue !== 'all') params.append('batch', batchValue);
-      if (genderValue !== 'all') params.append('gender', genderValue);
-      params.append('date', dateValue);
-      window.location.href = `/admin/export-meal-history?${params.toString()}`;
-    }
-
-    // Add User Modal
-    function openAddUserModal() {
-      document.getElementById('addUserModal').style.display = 'flex';
-    }
-
-    function closeAddUserModal() {
-      document.getElementById('addUserModal').style.display = 'none';
-      document.getElementById('addUserForm').reset();
-    }
-
-    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData);
-      console.log('Adding user:', data);
-      try {
-        const response = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-        const result = await response.json();
-        console.log('Add user response:', result);
-        if (response.ok) {
-          alert(result.message);
-          window.location.reload();
-        } else {
-          alert(result.error || 'Failed to add user');
-        }
-      } catch (err) {
-        console.error('Add user error:', err);
-        alert('Error adding user');
-      }
-      closeAddUserModal();
-    });
-
-    // Edit User Modal
-    function openEditUserModal(userId, deposit, totalMealCount, name) {
-      console.log('Opening edit user modal:', { userId, deposit, totalMealCount, name });
-      document.getElementById('editUserId').value = userId;
-      document.getElementById('editDeposit').value = deposit;
-      document.getElementById('editTotalMealCount').value = totalMealCount;
-      document.getElementById('editUserName').textContent = name;
-      document.getElementById('editUserModal').style.display = 'flex';
-    }
-
-    function closeEditUserModal() {
-      document.getElementById('editUserModal').style.display = 'none';
-      document.getElementById('editUserForm').reset();
-      document.getElementById('editUserName').textContent = '';
-    }
-
-    document.getElementById('editUserForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const userId = document.getElementById('editUserId').value;
-      const deposit = document.getElementById('editDeposit').value;
-      const totalMealCount = document.getElementById('editTotalMealCount').value;
-      console.log('Submitting edit user:', { userId, deposit, totalMealCount });
-      if (deposit < 0 || totalMealCount < 0) {
-        alert('Deposit and Total Meal Count cannot be negative');
-        return;
-      }
-      try {
-        const response = await fetch(`/api/users/${userId}/update`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deposit: Number(deposit), totalMealCount: Number(totalMealCount) }),
-        });
-        const result = await response.json();
-        console.log('Update user response:', result);
-        if (response.ok) {
-          alert(result.message);
-          window.location.reload();
-        } else {
-          alert(result.error || 'Failed to update user');
-        }
-      } catch (err) {
-        console.error('Edit user error:', err);
-        alert('Error updating user');
-      }
-      closeEditUserModal();
-    });
-
-    // Delete User
-    async function deleteUser(userId) {
-      if (!confirm('Are you sure you want to delete this user?')) return;
-      console.log('Deleting user:', userId);
-      try {
-        const response = await fetch(`/api/admin/users/${userId}`, {
-          method: 'DELETE',
-        });
-        const result = await response.json();
-        console.log('Delete user response:', result);
-        if (response.ok) {
-          alert(result.message);
-          window.location.reload();
-        } else {
-          alert(result.error || 'Failed to delete user');
-        }
-      } catch (err) {
-        console.error('Delete user error:', err);
-        alert('Error deleting user');
-      }
-    }
-
-    // Fetch Staff
-    async function fetchStaff() {
-      const searchValue = document.getElementById('staffSearch').value.toLowerCase();
-      console.log('Fetching staff with search:', searchValue);
-      try {
-        const response = await fetch('/api/admin/staff');
-        const data = await response.json();
-        console.log('Staff data:', data);
-        if (response.ok) {
-          const filteredStaff = data.staff.filter(s => 
-            s.name.toLowerCase().includes(searchValue) || s.email.toLowerCase().includes(searchValue)
-          );
-          renderStaffTable(filteredStaff);
-        } else {
-          alert(data.error || 'Failed to fetch staff');
-          document.getElementById('staffBody').innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-500">No data found</td></tr>`;
-        }
-      } catch (err) {
-        console.error('Fetch staff error:', err);
-        alert('Error fetching staff');
-        document.getElementById('staffBody').innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-500">Error loading data</td></tr>`;
-      }
-    }
-
-    // Render Staff Table
-    function renderStaffTable(staff) {
-      const tbody = document.getElementById('staffBody');
-      tbody.innerHTML = '';
-      staff.forEach(s => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        row.innerHTML = `
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.name || '-'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.email}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.isActive ? 'Active' : 'Inactive'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
-            <button onclick="toggleStaffStatus('${s._id}', ${s.isActive})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
-              ${s.isActive ? 'Deactivate' : 'Activate'}
-            </button>
-            <button onclick="deleteStaff('${s._id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
-              Delete
-            </button>
-          </td>
+        tbody.appendChild(totalRow);
+        const summaryRow = document.createElement('tr');
+        summaryRow.className = 'bg-gray-100 font-semibold';
+        summaryRow.innerHTML = `
+          <td class="px-6 py-4 text-sm text-gray-900">Summary (${data.date})</td>
+          <td colspan="2"></td>
+          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.additionalItems}</td>
+          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.lunchServed}</td>
+          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.dinnerServed}</td>
+          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.dailyMealCount}</td>
+          <td></td>
         `;
-        tbody.appendChild(row);
+        tbody.appendChild(totalRow);
+      }
+
+      // Download Meal History Excel
+      function downloadMealHistoryExcel() {
+        const batch = mealBatchFilter.value;
+        const gender = mealGenderFilter.value;
+        const date = dateFilter.value;
+        if (!date) return alert('Please select a date.');
+        const params = new URLSearchParams();
+        if (batch !== 'all') params.append('batch', batch);
+        if (gender !== 'all') params.append('gender', gender);
+        params.append('date', date);
+        window.location.href = `/admin/export-meal-history?${params.toString()}`;
+      }
+
+      // Add User Modal
+      function openAddUserModal() {
+        document.getElementById('addUserModal').style.display = 'flex';
+      }
+      function closeAddUserModal() {
+        document.getElementById('addUserModal').style.display = 'none';
+        document.getElementById('addUserForm').reset();
+      }
+      document.getElementById('addUserForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+          const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            window.location.reload();
+          } else {
+            alert(result.error || 'Failed to add user.');
+          }
+        } catch (err) {
+          alert('Error adding user.');
+        }
+        closeAddUserModal();
       });
-    }
 
-    // Staff Search
-    document.getElementById('staffSearch').addEventListener('input', fetchStaff);
-
-    // Add Staff Modal
-    function openAddStaffModal() {
-      document.getElementById('addStaffModal').style.display = 'flex';
-    }
-
-    function closeAddStaffModal() {
-      document.getElementById('addStaffModal').style.display = 'none';
-      document.getElementById('addStaffForm').reset();
-    }
-
-    document.getElementById('addStaffForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData);
-      console.log('Adding staff:', data);
-      try {
-        const response = await fetch('/api/admin/staff', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-        const result = await response.json();
-        console.log('Add staff response:', result);
-        if (response.ok) {
-          alert(result.message);
-          fetchStaff();
-        } else {
-          alert(result.error || 'Failed to add staff');
-        }
-      } catch (err) {
-        console.error('Add staff error:', err);
-        alert('Error adding staff');
+      // Edit User Modal
+      function openEditUserModal(userId, deposit, totalMealCount, name) {
+        document.getElementById('editUserId').value = userId;
+        document.getElementById('editDeposit').value = deposit;
+        document.getElementById('editTotalMealCount').value = totalMealCount;
+        document.getElementById('editUserName').textContent = name;
+        document.getElementById('editUserModal').style.display = 'flex';
       }
-      closeAddStaffModal();
-    });
-
-    // Toggle Staff Status
-    async function toggleStaffStatus(staffId, isActive) {
-      console.log('Toggling staff status:', { staffId, isActive });
-      try {
-        const response = await fetch(`/api/admin/staff/${staffId}/toggle-status`, {
-          method: 'PUT',
-        });
-        const result = await response.json();
-        console.log('Toggle staff response:', result);
-        if (response.ok) {
-          alert(result.message);
-          fetchStaff();
-        } else {
-          alert(result.error || 'Failed to toggle staff status');
-        }
-      } catch (err) {
-        console.error('Toggle staff error:', err);
-        alert('Error toggling staff status');
+      function closeEditUserModal() {
+        document.getElementById('editUserModal').style.display = 'none';
+        document.getElementById('editUserForm').reset();
+        document.getElementById('editUserName').textContent = '';
       }
-    }
-
-    // Delete Staff
-    async function deleteStaff(staffId) {
-      if (!confirm('Are you sure you want to delete this staff member?')) return;
-      console.log('Deleting staff:', staffId);
-      try {
-        const response = await fetch(`/api/admin/staff/${staffId}`, {
-          method: 'DELETE',
-        });
-        const result = await response.json();
-        console.log('Delete staff response:', result);
-        if (response.ok) {
-          alert(result.message);
-          fetchStaff();
-        } else {
-          alert(result.error || 'Failed to delete staff');
+      document.getElementById('editUserForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const userId = document.getElementById('editUserId').value;
+        const deposit = Number(document.getElementById('editDeposit').value);
+        const totalMealCount = Number(document.getElementById('editTotalMealCount').value);
+        if (deposit < 0 || totalMealCount < 0) return alert('Values cannot be negative.');
+        try {
+          const response = await fetch(`/api/users/${userId}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deposit, totalMealCount }),
+          });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            window.location.reload();
+          } else {
+            alert(result.error || 'Failed to update user.');
+          }
+        } catch (err) {
+          alert('Error updating user.');
         }
-      } catch (err) {
-        console.error('Delete staff error:', err);
-        alert('Error deleting staff');
-      }
-    }
+        closeEditUserModal();
+      });
 
-    // Fetch Deposits
-    async function fetchDeposits() {
-      const statusValue = document.getElementById('depositStatusFilter').value;
-      console.log('Fetching deposits with status:', statusValue);
-      try {
-        const response = await fetch('/api/admin/deposits');
-        const data = await response.json();
-        console.log('Deposits data:', data);
-        if (response.ok) {
-          const filteredDeposits = statusValue === 'all' ? data.deposits : data.deposits.filter(d => d.status === statusValue);
-          renderDepositsTable(filteredDeposits);
-        } else {
-          alert(data.error || 'Failed to fetch deposits');
-          document.getElementById('depositsBody').innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-500">No data found</td></tr>`;
+      // Delete User
+      async function deleteUser(userId) {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        try {
+          const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            window.location.reload();
+          } else {
+            alert(result.error || 'Failed to delete user.');
+          }
+        } catch (err) {
+          alert('Error deleting user.');
         }
-      } catch (err) {
-        console.error('Fetch deposits error:', err);
-        alert('Error fetching deposits');
-        document.getElementById('depositsBody').innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-500">Error loading data</td></tr>`;
       }
-    }
 
-    // Render Deposits Table
-    function renderDepositsTable(deposits) {
-      const tbody = document.getElementById('depositsBody');
-      tbody.innerHTML = '';
-      deposits.forEach(deposit => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        row.innerHTML = `
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${deposit.userId.name} (Roll: ${deposit.userId.classRoll})</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${deposit.amount}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${deposit.status}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${new Date(deposit.requestDate).toLocaleDateString('en-GB')}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
-            ${deposit.status === 'Pending' ? `
-              <button onclick="approveDeposit('${deposit._id}')" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
-                Approve
+      // Fetch Staff
+      async function fetchStaff() {
+        const search = document.getElementById('staffSearch').value.toLowerCase();
+        try {
+          const response = await fetch('/api/admin/staff');
+          const data = await response.json();
+          if (response.ok) {
+            const filteredStaff = data.staff.filter(s => 
+              s.name.toLowerCase().includes(search) || s.email.toLowerCase().includes(search)
+            );
+            renderStaffTable(filteredStaff);
+          } else {
+            alert(data.error || 'Failed to fetch staff.');
+            document.getElementById('staffBody').innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-600">No data found.</td></tr>';
+          }
+        } catch (err) {
+          alert('Error fetching staff.');
+          document.getElementById('staffBody').innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-600">Error loading data.</td></tr>';
+        }
+      }
+
+      // Render Staff Table
+      function renderStaffTable(staff) {
+        const tbody = document.getElementById('staffBody');
+        tbody.innerHTML = '';
+        staff.forEach(s => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 text-sm text-gray-900">${s.name || '-'}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${s.email}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${s.isActive ? 'Active' : 'Inactive'}</td>
+            <td class="px-6 py-4 text-sm flex gap-2">
+              <button onclick="toggleStaffStatus('${s._id}', ${s.isActive})" class="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
+                ${s.isActive ? 'Deactivate' : 'Activate'}
               </button>
-              <button onclick="rejectDeposit('${deposit._id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
-                Reject
+              <button onclick="deleteStaff('${s._id}')" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
+                Delete
               </button>
-            ` : ''}
-          </td>
-        `;
-        tbody.appendChild(row);
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      document.getElementById('staffSearch').addEventListener('input', fetchStaff);
+
+      // Add Staff Modal
+      function openAddStaffModal() {
+        document.getElementById('addStaffModal').style.display = 'flex';
+      }
+      function closeAddStaffModal() {
+        document.getElementById('addStaffModal').style.display = 'none';
+        document.getElementById('addStaffForm').reset();
+      }
+      document.getElementById('addStaffForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+          const response = await fetch('/api/admin/staff', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            fetchStaff();
+          } else {
+            alert(result.error || 'Failed to add staff.');
+          }
+        } catch (err) {
+          alert('Error adding staff.');
+        }
+        closeAddStaffModal();
       });
-    }
 
-    // Deposit Status Filter
-    document.getElementById('depositStatusFilter').addEventListener('change', fetchDeposits);
-
-    // Approve Deposit
-    async function approveDeposit(depositId) {
-      console.log('Approving deposit:', depositId);
-      try {
-        const response = await fetch(`/api/admin/deposits/${depositId}/approve`, {
-          method: 'POST',
-        });
-        const result = await response.json();
-        console.log('Approve deposit response:', result);
-        if (response.ok) {
-          alert(result.message);
-          fetchDeposits();
-        } else {
-          alert(result.error || 'Failed to approve deposit');
+      // Toggle Staff Status
+      async function toggleStaffStatus(staffId, isActive) {
+        try {
+          const response = await fetch(`/api/admin/staff/${staffId}/toggle-status`, { method: 'PUT' });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            fetchStaff();
+          } else {
+            alert(result.error || 'Failed to toggle staff status.');
+          }
+        } catch (err) {
+          alert('Error toggling staff status.');
         }
-      } catch (err) {
-        console.error('Approve deposit error:', err);
-        alert('Error approving deposit');
       }
-    }
 
-    // Reject Deposit
-    async function rejectDeposit(depositId) {
-      console.log('Rejecting deposit:', depositId);
-      try {
-        const response = await fetch(`/api/admin/deposits/${depositId}/reject`, {
-          method: 'POST',
-        });
-        const result = await response.json();
-        console.log('Reject deposit response:', result);
-        if (response.ok) {
-          alert(result.message);
-          fetchDeposits();
-        } else {
-          alert(result.error || 'Failed to reject deposit');
+      // Delete Staff
+      async function deleteStaff(staffId) {
+        if (!confirm('Are you sure you want to delete this staff member?')) return;
+        try {
+          const response = await fetch(`/api/admin/staff/${staffId}`, { method: 'DELETE' });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            fetchStaff();
+          } else {
+            alert(result.error || 'Failed to delete staff.');
+          }
+        } catch (err) {
+          alert('Error deleting staff.');
         }
-      } catch (err) {
-        console.error('Reject deposit error:', err);
-        alert('Error rejecting deposit');
       }
-    }
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      switchTab('users');
-      fetchStaff();
-      fetchDeposits();
-    });
-  </script>
+      // Fetch Deposits
+      async function fetchDeposits() {
+        const status = document.getElementById('depositStatusFilter').value;
+        try {
+          const response = await fetch('/api/admin/deposits');
+          const data = await response.json();
+          if (response.ok) {
+            const filteredDeposits = status === 'all' ? data.deposits : data.deposits.filter(d => d.status === status);
+            renderDepositsTable(filteredDeposits);
+          } else {
+            alert(data.error || 'Failed to fetch deposits.');
+            document.getElementById('depositsBody').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-600">No data found.</td></tr>';
+          }
+        } catch (err) {
+          alert('Error fetching deposits.');
+          document.getElementById('depositsBody').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-600">Error loading data.</td></tr>';
+        }
+      }
+
+      // Render Deposits Table
+      function renderDepositsTable(deposits) {
+        const tbody = document.getElementById('depositsBody');
+        tbody.innerHTML = '';
+        deposits.forEach(deposit => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 text-sm text-gray-900">${deposit.userId.name} (Roll: ${deposit.userId.classRoll})</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${deposit.amount}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${deposit.status}</td>
+            <td class="px-6 py-4 text-sm text-gray-900">${new Date(deposit.requestDate).toLocaleDateString('en-GB')}</td>
+            <td class="px-6 py-4 text-sm flex gap-2">
+              ${deposit.status === 'Pending' ? `
+                <button onclick="approveDeposit('${deposit._id}')" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">Approve</button>
+                <button onclick="rejectDeposit('${deposit._id}')" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">Reject</button>
+              ` : ''}
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      document.getElementById('depositStatusFilter').addEventListener('change', fetchDeposits);
+
+      // Approve Deposit
+      async function approveDeposit(depositId) {
+        try {
+          const response = await fetch(`/api/admin/deposits/${depositId}/approve`, { method: 'POST' });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            fetchDeposits();
+          } else {
+            alert(result.error || 'Failed to approve deposit.');
+          }
+        } catch (err) {
+          alert('Error approving deposit.');
+        }
+      }
+
+      // Reject Deposit
+      async function rejectDeposit(depositId) {
+        try {
+          const response = await fetch(`/api/admin/deposits/${depositId}/reject`, { method: 'POST' });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            fetchDeposits();
+          } else {
+            alert(result.error || 'Failed to reject deposit.');
+          }
+        } catch (err) {
+          alert('Error rejecting deposit.');
+        }
+      }
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', () => {
+        navigateToTab('users');
+        fetchStaff();
+        fetchDeposits();
+      });
+    </script>
 </body>
 </html>

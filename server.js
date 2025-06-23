@@ -1177,6 +1177,9 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
   });
 });
+sidebar.classList.toggle('sidebar-open');
+const isOpen = sidebar.classList.contains('sidebar-open');
+document.getElementById('toggleSidebar').setAttribute('aria-expanded', isOpen);
 
 // Start Server
 const server = app.listen(PORT, '0.0.0.0', () => {
