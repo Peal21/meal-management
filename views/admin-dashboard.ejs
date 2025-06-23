@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,150 +23,365 @@
       padding: 24px;
       border-radius: 8px;
       width: 90%;
-      max-width: 500px;
+      max-width: 600px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .sidebar {
+      transition: transform 0.3s ease-in-out;
+    }
+    .sidebar-hidden {
+      transform: translateX(-100%);
     }
   </style>
 </head>
 <body class="bg-gray-100 font-sans">
-  <div class="container mx-auto p-6">
+  <!-- Sidebar -->
+  <div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-800 text-white flex flex-col p-4 sidebar">
+    <h2 class="text-2xl font-bold mb-6">Admin Panel</h2>
+    <nav class="flex-1">
+      <button onclick="switchTab('users')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Users</button>
+      <button onclick="switchTab('mealHistory')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Meal History</button>
+      <button onclick="switchTab('staff')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Staff</button>
+      <button onclick="switchTab('deposits')" class="w-full text-left py-2 px-4 hover:bg-gray-700 rounded-md mb-2">Deposits</button>
+      <a href="/admin/logout" class="w-full text-left py-2 px-4 hover:bg-red-600 rounded-md mt-auto">Logout</a>
+    </nav>
+  </div>
+
+  <!-- Main Content -->
+  <div class="ml-0 md:ml-64 p-6 transition-all duration-300">
+    <button id="toggleSidebar" class="md:hidden bg-gray-800 text-white p-2 rounded-md mb-4">
+      ☰ Menu
+    </button>
     <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Admin Dashboard</h1>
-    
-    <!-- Filters and Buttons -->
-    <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-      <div class="flex gap-4 flex-wrap">
-        <select id="batchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-          <option value="all">All Batches</option>
-          <% batches.forEach(batch => { %>
-            <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
-          <% }) %>
-        </select>
-        <select id="genderFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-          <option value="all">All Genders</option>
-          <% genders.forEach(gender => { %>
-            <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
-          <% }) %>
-        </select>
-        <input type="date" id="dateFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="<%= new Date().toISOString().split('T')[0] %>">
-      </div>
-      <div class="flex gap-4">
-        <button onclick="fetchMealHistory()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-          Refresh Data
-        </button>
-        <button onclick="downloadMealHistoryExcel()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-          Download as Excel
-        </button>
-      </div>
-    </div>
 
-    <!-- Live Meal History Table -->
-    <div id="mealHistoryContainer" class="overflow-x-auto bg-white shadow-md rounded-lg mb-6">
-      <table id="mealHistoryTable" class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Roll</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meal</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Additional Items</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lunch Served</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinner Served</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Daily Meal Count</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Meals</th>
-          </tr>
-        </thead>
-        <tbody id="mealHistoryBody" class="bg-white divide-y divide-gray-200">
-          <!-- Data will be populated via JavaScript -->
-        </tbody>
-      </table>
-    </div>
+    <!-- Tabs -->
+    <div id="usersTab" class="tab-content">
+      <!-- Filters and Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <div class="flex gap-4 flex-wrap">
+          <select id="userBatchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="all">All Batches</option>
+            <% batches.forEach(batch => { %>
+              <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
+            <% }) %>
+          </select>
+          <select id="userGenderFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="all">All Genders</option>
+            <% genders.forEach(gender => { %>
+              <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="flex gap-4">
+          <button onclick="openAddUserModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+            Add User
+          </button>
+        </div>
+      </div>
 
-    <!-- Users Table -->
-    <div class="overflow-x-auto bg-white shadow-md rounded-lg">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Roll</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deposit</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Meals</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <% if (users.length === 0) { %>
+      <!-- Users Table -->
+      <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
             <tr>
-              <td colspan="7" class="px-6 py-4 text-center text-sm text-red-500">
-                No users found for the selected filters. Please check the gender values in the database or try different filters.
-              </td>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Roll</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deposit</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Meals</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
-          <% } else { %>
-            <% users.forEach(user => { %>
-              <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.name %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.classRoll %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.batch %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.gender %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.deposit %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.totalMealCount %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                  <button onclick='openEditModal("<%= user._id %>", <%= user.deposit %>, <%= user.totalMealCount %>, "<%= user.name.replace(/"/g, '\\"') %>")' class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
-                    Edit
-                  </button>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% if (users.length === 0) { %>
+              <tr>
+                <td colspan="7" class="px-6 py-4 text-center text-sm text-red-500">
+                  No users found for the selected filters.
                 </td>
               </tr>
+            <% } else { %>
+              <% users.forEach(user => { %>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.name %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.classRoll %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.batch %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.gender %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.deposit %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.totalMealCount %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
+                    <button onclick='openEditUserModal("<%= user._id %>", <%= user.deposit %>, <%= user.totalMealCount %>, "<%= user.name.replace(/"/g, '\\"') %>")' class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+                      Edit
+                    </button>
+                    <button onclick='deleteUser("<%= user._id %>")' class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="mealHistoryTab" class="tab-content hidden">
+      <!-- Filters and Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <div class="flex gap-4 flex-wrap">
+          <select id="mealBatchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="all">All Batches</option>
+            <% batches.forEach(batch => { %>
+              <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
             <% }) %>
-          <% } %>
-        </tbody>
-      </table>
+          </select>
+          <select id="mealGenderFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="all">All Genders</option>
+            <% genders.forEach(gender => { %>
+              <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
+            <% }) %>
+          </select>
+          <input type="date" id="dateFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="<%= new Date().toISOString().split('T')[0] %>">
+        </div>
+        <div class="flex gap-4">
+          <button onclick="fetchMealHistory()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+            Refresh Data
+          </button>
+          <button onclick="downloadMealHistoryExcel()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+            Download as Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Meal History Table -->
+      <div id="mealHistoryContainer" class="overflow-x-auto bg-white shadow-md rounded-lg mb-6">
+        <table id="mealHistoryTable" class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Roll</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meal</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Additional Items</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lunch Served</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dinner Served</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Daily Meal Count</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Meals</th>
+            </tr>
+          </thead>
+          <tbody id="mealHistoryBody" class="bg-white divide-y divide-gray-200">
+            <!-- Data will be populated via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="staffTab" class="tab-content hidden">
+      <!-- Staff Filters and Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <div class="flex gap-4 flex-wrap">
+          <input type="text" id="staffSearch" placeholder="Search by name or email" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        </div>
+        <div class="flex gap-4">
+          <button onclick="openAddStaffModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+            Add Staff
+          </button>
+        </div>
+      </div>
+
+      <!-- Staff Table -->
+      <div id="staffContainer" class="overflow-x-auto bg-white shadow-md rounded-lg">
+        <table id="staffTable" class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="staffBody" class="bg-white divide-y divide-gray-200">
+            <!-- Data will be populated via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="depositsTab" class="tab-content hidden">
+      <!-- Deposits Filters and Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <div class="flex gap-4 flex-wrap">
+          <select id="depositStatusFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="all">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="flex gap-4">
+          <button onclick="fetchDeposits()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+            Refresh Deposits
+          </button>
+        </div>
+      </div>
+
+      <!-- Deposits Table -->
+      <div id="depositsContainer" class="overflow-x-auto bg-white shadow-md rounded-lg">
+        <table id="depositsTable" class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="depositsBody" class="bg-white divide-y divide-gray-200">
+            <!-- Data will be populated via JavaScript -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <!-- Edit Modal -->
-  <div id="editModal" class="modal">
+  <!-- Add User Modal -->
+  <div id="addUserModal" class="modal">
     <div class="modal-content">
-      <h2 class="text-xl font-bold mb-4">Edit User: <span id="userName"></span></h2>
-      <form id="editForm" class="space-y-4">
+      <h2 class="text-xl font-bold mb-4">Add New User</h2>
+      <form id="addUserForm" class="space-y-4">
         <div>
-          <label for="deposit" class="block text-sm font-medium text-gray-700">Deposit</label>
-          <input type="number" id="deposit" name="deposit" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          <label for="addName" class="block text-sm font-medium text-gray-700">Name</label>
+          <input type="text" id="addName" name="name" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
         </div>
         <div>
-          <label for="totalMealCount" class="block text-sm font-medium text-gray-700">Total Meal Count</label>
-          <input type="number" id="totalMealCount" name="totalMealCount" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          <label for="addClassRoll" class="block text-sm font-medium text-gray-700">Class Roll</label>
+          <input type="number" id="addClassRoll" name="classRoll" min="1" max="100" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
         </div>
-        <input type="hidden" id="userId" name="userId">
+        <div>
+          <label for="addEmail" class="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" id="addEmail" name="email" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <div>
+          <label for="addPassword" class="block text-sm font-medium text-gray-700">Password</label>
+          <input type="password" id="addPassword" name="password" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <div>
+          <label for="addGender" class="block text-sm font-medium text-gray-700">Gender</label>
+          <select id="addGender" name="gender" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <option value="">Select Gender</option>
+            <% genders.forEach(gender => { %>
+              <option value="<%= gender %>"><%= gender %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label for="addBatch" class="block text-sm font-medium text-gray-700">Batch</label>
+          <select id="addBatch" name="batch" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <option value="">Select Batch</option>
+            <% batches.forEach(batch => { %>
+              <option value="<%= batch %>"><%= batch %></option>
+            <% }) %>
+          </select>
+        </div>
         <div class="flex justify-end gap-4">
-          <button type="button" onclick="closeEditModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition duration-200">Cancel</button>
+          <button type="button" onclick="closeAddUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition duration-200">Cancel</button>
+          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div id="editUserModal" class="modal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">Edit User: <span id="editUserName"></span></h2>
+      <form id="editUserForm" class="space-y-4">
+        <div>
+          <label for="editDeposit" class="block text-sm font-medium text-gray-700">Deposit</label>
+          <input type="number" id="editDeposit" name="deposit" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <div>
+          <label for="editTotalMealCount" class="block text-sm font-medium text-gray-700">Total Meal Count</label>
+          <input type="number" id="editTotalMealCount" name="totalMealCount" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <input type="hidden" id="editUserId" name="userId">
+        <div class="flex justify-end gap-4">
+          <button type="button" onclick="closeEditUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition duration-200">Cancel</button>
           <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">Save</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Add Staff Modal -->
+  <div id="addStaffModal" class="modal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">Add New Staff</h2>
+      <form id="addStaffForm" class="space-y-4">
+        <div>
+          <label for="addStaffName" class="block text-sm font-medium text-gray-700">Name</label>
+          <input type="text" id="addStaffName" name="name" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <div>
+          <label for="addStaffEmail" class="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" id="addStaffEmail" name="email" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <div>
+          <label for="addStaffPassword" class="block text-sm font-medium text-gray-700">Password</label>
+          <input type="password" id="addStaffPassword" name="password" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <div class="flex justify-end gap-4">
+          <button type="button" onclick="closeAddStaffModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition duration-200">Cancel</button>
+          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    // Filter handling for user table
-    const batchFilter = document.getElementById('batchFilter');
-    const genderFilter = document.getElementById('genderFilter');
-    [batchFilter, genderFilter].forEach(filter => {
+    // Sidebar toggle
+    document.getElementById('toggleSidebar').addEventListener('click', () => {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('sidebar-hidden');
+    });
+
+    // Tab switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+      document.getElementById(`${tabId}Tab`).classList.remove('hidden');
+      if (tabId === 'mealHistory') fetchMealHistory();
+      if (tabId === 'staff') fetchStaff();
+      if (tabId === 'deposits') fetchDeposits();
+    }
+
+    // User Filters
+    const userBatchFilter = document.getElementById('userBatchFilter');
+    const userGenderFilter = document.getElementById('userGenderFilter');
+    [userBatchFilter, userGenderFilter].forEach(filter => {
       filter.addEventListener('change', () => {
-        const batchValue = batchFilter.value;
-        const genderValue = genderFilter.value;
-        console.log('Filter selected:', { batch: batchValue, gender: genderValue });
+        const batchValue = userBatchFilter.value;
+        const genderValue = userGenderFilter.value;
+        console.log('User filter selected:', { batch: batchValue, gender: genderValue });
         const params = new URLSearchParams();
         if (batchValue !== 'all') params.append('batch', batchValue);
         if (genderValue !== 'all') params.append('gender', genderValue);
-        console.log('URL params:', params.toString());
         window.location.href = `/admin/dashboard?${params.toString()}`;
       });
     });
 
-    // Fetch meal history data
+    // Meal History Filters
+    const mealBatchFilter = document.getElementById('mealBatchFilter');
+    const mealGenderFilter = document.getElementById('mealGenderFilter');
+    const dateFilter = document.getElementById('dateFilter');
+    [mealBatchFilter, mealGenderFilter, dateFilter].forEach(filter => {
+      filter.addEventListener('change', fetchMealHistory);
+    });
+
+    // Fetch Meal History
     async function fetchMealHistory() {
-      const batchValue = batchFilter.value;
-      const genderValue = genderFilter.value;
-      const dateValue = document.getElementById('dateFilter').value;
+      const batchValue = mealBatchFilter.value;
+      const genderValue = mealGenderFilter.value;
+      const dateValue = dateFilter.value;
       console.log('Fetching meal history with:', { batch: batchValue, gender: genderValue, date: dateValue });
       if (!dateValue) {
         alert('Please select a date for the report');
@@ -180,7 +394,7 @@
       params.append('date', dateValue);
 
       try {
-        const response = await fetch(`/api/meal-history?${params.toString()}`);
+        const response = await fetch(`/api/meal-history/admin?${params.toString()}`);
         const data = await response.json();
         console.log('Meal history data:', data);
         if (response.ok) {
@@ -196,12 +410,10 @@
       }
     }
 
-    // Render meal history table
+    // Render Meal History Table
     function renderMealHistoryTable(data) {
       const tbody = document.getElementById('mealHistoryBody');
       tbody.innerHTML = '';
-
-      // User rows
       data.users.forEach(user => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
@@ -217,8 +429,6 @@
         `;
         tbody.appendChild(row);
       });
-
-      // Total row
       const totalRow = document.createElement('tr');
       totalRow.className = 'bg-gray-100 font-semibold';
       totalRow.innerHTML = `
@@ -232,8 +442,6 @@
         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.totals.totalMeals}</td>
       `;
       tbody.appendChild(totalRow);
-
-      // Summary row
       const summaryRow = document.createElement('tr');
       summaryRow.className = 'bg-gray-100 font-semibold';
       summaryRow.innerHTML = `
@@ -249,11 +457,11 @@
       tbody.appendChild(summaryRow);
     }
 
-    // Download meal history as Excel
+    // Download Meal History Excel
     function downloadMealHistoryExcel() {
-      const batchValue = batchFilter.value;
-      const genderValue = genderFilter.value;
-      const dateValue = document.getElementById('dateFilter').value;
+      const batchValue = mealBatchFilter.value;
+      const genderValue = mealGenderFilter.value;
+      const dateValue = dateFilter.value;
       console.log('Downloading meal history with:', { batch: batchValue, gender: genderValue, date: dateValue });
       if (!dateValue) {
         alert('Please select a date for the report');
@@ -266,35 +474,68 @@
       window.location.href = `/admin/export-meal-history?${params.toString()}`;
     }
 
-    // Modal handling
-    function openEditModal(userId, deposit, totalMealCount, name) {
-      console.log('Opening modal with:', { userId, deposit, totalMealCount, name });
-      document.getElementById('userId').value = userId;
-      document.getElementById('deposit').value = deposit;
-      document.getElementById('totalMealCount').value = totalMealCount;
-      document.getElementById('userName').textContent = name;
-      document.getElementById('editModal').style.display = 'flex';
+    // Add User Modal
+    function openAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'flex';
     }
 
-    function closeEditModal() {
-      document.getElementById('editModal').style.display = 'none';
-      document.getElementById('editForm').reset();
-      document.getElementById('userName').textContent = '';
+    function closeAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'none';
+      document.getElementById('addUserForm').reset();
     }
 
-    // Form submission
-    document.getElementById('editForm').addEventListener('submit', async (e) => {
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const userId = document.getElementById('userId').value;
-      const deposit = document.getElementById('deposit').value;
-      const totalMealCount = document.getElementById('totalMealCount').value;
-      console.log('Submitting edit:', { userId, deposit, totalMealCount });
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      console.log('Adding user:', data);
+      try {
+        const response = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const result = await response.json();
+        console.log('Add user response:', result);
+        if (response.ok) {
+          alert(result.message);
+          window.location.reload();
+        } else {
+          alert(result.error || 'Failed to add user');
+        }
+      } catch (err) {
+        console.error('Add user error:', err);
+        alert('Error adding user');
+      }
+      closeAddUserModal();
+    });
 
+    // Edit User Modal
+    function openEditUserModal(userId, deposit, totalMealCount, name) {
+      console.log('Opening edit user modal:', { userId, deposit, totalMealCount, name });
+      document.getElementById('editUserId').value = userId;
+      document.getElementById('editDeposit').value = deposit;
+      document.getElementById('editTotalMealCount').value = totalMealCount;
+      document.getElementById('editUserName').textContent = name;
+      document.getElementById('editUserModal').style.display = 'flex';
+    }
+
+    function closeEditUserModal() {
+      document.getElementById('editUserModal').style.display = 'none';
+      document.getElementById('editUserForm').reset();
+      document.getElementById('editUserName').textContent = '';
+    }
+
+    document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = document.getElementById('editUserId').value;
+      const deposit = document.getElementById('editDeposit').value;
+      const totalMealCount = document.getElementById('editTotalMealCount').value;
+      console.log('Submitting edit user:', { userId, deposit, totalMealCount });
       if (deposit < 0 || totalMealCount < 0) {
         alert('Deposit and Total Meal Count cannot be negative');
         return;
       }
-
       try {
         const response = await fetch(`/api/users/${userId}/update`, {
           method: 'POST',
@@ -302,7 +543,7 @@
           body: JSON.stringify({ deposit: Number(deposit), totalMealCount: Number(totalMealCount) }),
         });
         const result = await response.json();
-        console.log('Update response:', result);
+        console.log('Update user response:', result);
         if (response.ok) {
           alert(result.message);
           window.location.reload();
@@ -310,20 +551,264 @@
           alert(result.error || 'Failed to update user');
         }
       } catch (err) {
-        console.error('Edit error:', err);
-        alert('Error updating user. Please try again.');
+        console.error('Edit user error:', err);
+        alert('Error updating user');
       }
-      closeEditModal();
+      closeEditUserModal();
     });
 
-    // Auto-fetch meal history on page load
-    document.addEventListener('DOMContentLoaded', fetchMealHistory);
+    // Delete User
+    async function deleteUser(userId) {
+      if (!confirm('Are you sure you want to delete this user?')) return;
+      console.log('Deleting user:', userId);
+      try {
+        const response = await fetch(`/api/admin/users/${userId}`, {
+          method: 'DELETE',
+        });
+        const result = await response.json();
+        console.log('Delete user response:', result);
+        if (response.ok) {
+          alert(result.message);
+          window.location.reload();
+        } else {
+          alert(result.error || 'Failed to delete user');
+        }
+      } catch (err) {
+        console.error('Delete user error:', err);
+        alert('Error deleting user');
+      }
+    }
 
-    // Auto-fetch on filter change
-    [batchFilter, genderFilter, document.getElementById('dateFilter')].forEach(filter => {
-      filter.addEventListener('change', fetchMealHistory);
+    // Fetch Staff
+    async function fetchStaff() {
+      const searchValue = document.getElementById('staffSearch').value.toLowerCase();
+      console.log('Fetching staff with search:', searchValue);
+      try {
+        const response = await fetch('/api/admin/staff');
+        const data = await response.json();
+        console.log('Staff data:', data);
+        if (response.ok) {
+          const filteredStaff = data.staff.filter(s => 
+            s.name.toLowerCase().includes(searchValue) || s.email.toLowerCase().includes(searchValue)
+          );
+          renderStaffTable(filteredStaff);
+        } else {
+          alert(data.error || 'Failed to fetch staff');
+          document.getElementById('staffBody').innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-500">No data found</td></tr>`;
+        }
+      } catch (err) {
+        console.error('Fetch staff error:', err);
+        alert('Error fetching staff');
+        document.getElementById('staffBody').innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-500">Error loading data</td></tr>`;
+      }
+    }
+
+    // Render Staff Table
+    function renderStaffTable(staff) {
+      const tbody = document.getElementById('staffBody');
+      tbody.innerHTML = '';
+      staff.forEach(s => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.name || '-'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.email}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.isActive ? 'Active' : 'Inactive'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
+            <button onclick="toggleStaffStatus('${s._id}', ${s.isActive})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+              ${s.isActive ? 'Deactivate' : 'Activate'}
+            </button>
+            <button onclick="deleteStaff('${s._id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+              Delete
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Staff Search
+    document.getElementById('staffSearch').addEventListener('input', fetchStaff);
+
+    // Add Staff Modal
+    function openAddStaffModal() {
+      document.getElementById('addStaffModal').style.display = 'flex';
+    }
+
+    function closeAddStaffModal() {
+      document.getElementById('addStaffModal').style.display = 'none';
+      document.getElementById('addStaffForm').reset();
+    }
+
+    document.getElementById('addStaffForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      console.log('Adding staff:', data);
+      try {
+        const response = await fetch('/api/admin/staff', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const result = await response.json();
+        console.log('Add staff response:', result);
+        if (response.ok) {
+          alert(result.message);
+          fetchStaff();
+        } else {
+          alert(result.error || 'Failed to add staff');
+        }
+      } catch (err) {
+        console.error('Add staff error:', err);
+        alert('Error adding staff');
+      }
+      closeAddStaffModal();
+    });
+
+    // Toggle Staff Status
+    async function toggleStaffStatus(staffId, isActive) {
+      console.log('Toggling staff status:', { staffId, isActive });
+      try {
+        const response = await fetch(`/api/admin/staff/${staffId}/toggle-status`, {
+          method: 'PUT',
+        });
+        const result = await response.json();
+        console.log('Toggle staff response:', result);
+        if (response.ok) {
+          alert(result.message);
+          fetchStaff();
+        } else {
+          alert(result.error || 'Failed to toggle staff status');
+        }
+      } catch (err) {
+        console.error('Toggle staff error:', err);
+        alert('Error toggling staff status');
+      }
+    }
+
+    // Delete Staff
+    async function deleteStaff(staffId) {
+      if (!confirm('Are you sure you want to delete this staff member?')) return;
+      console.log('Deleting staff:', staffId);
+      try {
+        const response = await fetch(`/api/admin/staff/${staffId}`, {
+          method: 'DELETE',
+        });
+        const result = await response.json();
+        console.log('Delete staff response:', result);
+        if (response.ok) {
+          alert(result.message);
+          fetchStaff();
+        } else {
+          alert(result.error || 'Failed to delete staff');
+        }
+      } catch (err) {
+        console.error('Delete staff error:', err);
+        alert('Error deleting staff');
+      }
+    }
+
+    // Fetch Deposits
+    async function fetchDeposits() {
+      const statusValue = document.getElementById('depositStatusFilter').value;
+      console.log('Fetching deposits with status:', statusValue);
+      try {
+        const response = await fetch('/api/admin/deposits');
+        const data = await response.json();
+        console.log('Deposits data:', data);
+        if (response.ok) {
+          const filteredDeposits = statusValue === 'all' ? data.deposits : data.deposits.filter(d => d.status === statusValue);
+          renderDepositsTable(filteredDeposits);
+        } else {
+          alert(data.error || 'Failed to fetch deposits');
+          document.getElementById('depositsBody').innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-500">No data found</td></tr>`;
+        }
+      } catch (err) {
+        console.error('Fetch deposits error:', err);
+        alert('Error fetching deposits');
+        document.getElementById('depositsBody').innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-500">Error loading data</td></tr>`;
+      }
+    }
+
+    // Render Deposits Table
+    function renderDepositsTable(deposits) {
+      const tbody = document.getElementById('depositsBody');
+      tbody.innerHTML = '';
+      deposits.forEach(deposit => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${deposit.userId.name} (Roll: ${deposit.userId.classRoll})</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${deposit.amount}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${deposit.status}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${new Date(deposit.requestDate).toLocaleDateString('en-GB')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
+            ${deposit.status === 'Pending' ? `
+              <button onclick="approveDeposit('${deposit._id}')" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+                Approve
+              </button>
+              <button onclick="rejectDeposit('${deposit._id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md transition duration-200">
+                Reject
+              </button>
+            ` : ''}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Deposit Status Filter
+    document.getElementById('depositStatusFilter').addEventListener('change', fetchDeposits);
+
+    // Approve Deposit
+    async function approveDeposit(depositId) {
+      console.log('Approving deposit:', depositId);
+      try {
+        const response = await fetch(`/api/admin/deposits/${depositId}/approve`, {
+          method: 'POST',
+        });
+        const result = await response.json();
+        console.log('Approve deposit response:', result);
+        if (response.ok) {
+          alert(result.message);
+          fetchDeposits();
+        } else {
+          alert(result.error || 'Failed to approve deposit');
+        }
+      } catch (err) {
+        console.error('Approve deposit error:', err);
+        alert('Error approving deposit');
+      }
+    }
+
+    // Reject Deposit
+    async function rejectDeposit(depositId) {
+      console.log('Rejecting deposit:', depositId);
+      try {
+        const response = await fetch(`/api/admin/deposits/${depositId}/reject`, {
+          method: 'POST',
+        });
+        const result = await response.json();
+        console.log('Reject deposit response:', result);
+        if (response.ok) {
+          alert(result.message);
+          fetchDeposits();
+        } else {
+          alert(result.error || 'Failed to reject deposit');
+        }
+      } catch (err) {
+        console.error('Reject deposit error:', err);
+        alert('Error rejecting deposit');
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      switchTab('users');
+      fetchStaff();
+      fetchDeposits();
     });
   </script>
 </body>
 </html>
-```
