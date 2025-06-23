@@ -20,11 +20,11 @@
     }
     .modal-content {
       background-color: white;
-      padding: 24px;
+      padding: 20px;
       border-radius: 8px;
-      width: 600px;
-      max-width: 90%;
-      box-shadow: 0 4px 8px rgba(0, 0, 0.2);
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
     .menu-container {
       position: relative;
@@ -36,13 +36,13 @@
       top: 100%;
       right: 0;
       background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      min-width: 200px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      min-width: 180px;
       z-index: 20;
-      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
       opacity: 0;
-      transform: translateY(-10px);
+      transform: translateY(-8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
     .menu.active {
       display: block;
@@ -56,7 +56,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0,0.5);
+      background-color: rgba(0, 0, 0, 0.3);
       z-index: 15;
     }
     .menu.active + .menu-backdrop {
@@ -66,12 +66,12 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      width: 24px;
-      height: 18px;
+      width: 20px;
+      height: 16px;
     }
     .three-dot-menu span {
       width: 100%;
-      height: 4px;
+      height: 3px;
       background-color: white;
       border-radius: 2px;
     }
@@ -79,10 +79,10 @@
 </head>
 <body class="bg-gray-50 font-sans">
   <!-- Header -->
-  <header class="bg-gray-100 shadow p-4 flex justify-between items-center">
-    <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+  <header class="bg-white shadow p-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
     <div class="menu-container">
-      <button id="toggleMenu" class="bg-gray-800 text-white p-2 rounded-lg flex items-center justify-center" aria-label="Toggle menu" aria-expanded="false">
+      <button id="toggleMenu" class="bg-gray-800 text-white p-2 rounded-md flex items-center justify-center" aria-label="Toggle navigation menu" aria-expanded="false">
         <div class="three-dot-menu">
           <span></span>
           <span></span>
@@ -90,71 +90,71 @@
         </div>
       </button>
       <nav id="menu" class="menu">
-        <button onclick="navigateToTab('users')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Users</button>
-        <button onclick="navigateToTab('mealHistory')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Meal History</button>
-        <button onclick="navigateToTab('staff')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Staff</button>
-        <button onclick="navigateToTab('deposits')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-800">Deposits</button>
-        <a href="/admin/logout" class="block w-full text-left py-2 px-4 hover:bg-red-100 text-red-600">Logout</a>
+        <button onclick="navigateToTab('users')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-700 text-sm">Users</button>
+        <button onclick="navigateToTab('mealHistory')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-700 text-sm">Meal History</button>
+        <button onclick="navigateToTab('staff')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-700 text-sm">Staff</button>
+        <button onclick="navigateToTab('deposits')" class="block w-full text-left py-2 px-4 hover:bg-gray-100 text-gray-700 text-sm">Deposits</button>
+        <a href="/admin/logout" class="block w-full text-left py-2 px-4 hover:bg-red-100 text-red-600 text-sm">Logout</a>
       </nav>
       <div id="menuBackdrop" class="menu-backdrop"></div>
     </div>
   </header>
 
   <!-- Main Content -->
-  <div class="p-6 main-content">
+  <div class="p-4 max-w-7xl mx-auto">
     <!-- Users Tab -->
     <div id="usersTab" class="tab-content">
-      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <div class="flex gap-4 flex-wrap">
-          <select id="userBatchFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+        <div class="flex gap-3 flex-wrap">
+          <select id="userBatchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
             <option value="all">All Batches</option>
             <% batches.forEach(batch => { %>
               <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
             <% }) %>
           </select>
-          <select id="userGenderFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <select id="userGenderFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
             <option value="all">All Genders</option>
             <% genders.forEach(gender => { %>
               <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
             <% }) %>
           </select>
         </div>
-        <button onclick="openAddUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+        <button onclick="openAddUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150">
           Add User
         </button>
       </div>
-      <div class="overflow-x-auto bg-white shadow-lg rounded-lg">
+      <div class="overflow-x-auto bg-white shadow rounded-md">
         <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-100">
+          <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Class Roll</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Batch</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Gender</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Deposit</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Total Meals</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Class Roll</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Batch</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Gender</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Deposit</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Meals</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             <% if (users.length === 0) { %>
               <tr>
-                <td colspan="7" class="px-6 py-4 text-center text-sm text-red-600">No users found.</td>
+                <td colspan="7" class="px-4 py-3 text-center text-sm text-red-600">No users found.</td>
               </tr>
             <% } else { %>
               <% users.forEach(user => { %>
                 <tr class="hover:bg-gray-50">
-                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.name %></td>
-                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.classRoll %></td>
-                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.batch %></td>
-                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.gender %></td>
-                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.deposit %></td>
-                  <td class="px-6 py-4 text-sm text-gray-900"><%= user.totalMealCount %></td>
-                  <td class="px-6 py-4 text-sm flex gap-2">
-                    <button onclick='openEditUserModal("<%= user._id %>", <%= user.deposit %>, <%= user.totalMealCount %>, "<%= user.name.replace(/"/g, '\\"') %>")' class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
+                  <td class="px-4 py-3 text-sm text-gray-900"><%= user.name %></td>
+                  <td class="px-4 py-3 text-sm text-gray-900"><%= user.classRoll %></td>
+                  <td class="px-4 py-3 text-sm text-gray-900"><%= user.batch %></td>
+                  <td class="px-4 py-3 text-sm text-gray-900"><%= user.gender %></td>
+                  <td class="px-4 py-3 text-sm text-gray-900"><%= user.deposit %></td>
+                  <td class="px-4 py-3 text-sm text-gray-900"><%= user.totalMealCount %></td>
+                  <td class="px-4 py-3 text-sm flex gap-2">
+                    <button onclick='openEditUserModal("<%= user._id %>", <%= user.deposit %>, <%= user.totalMealCount %>, "<%= user.name.replace(/"/g, '\\"') %>")' class="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">
                       Edit
                     </button>
-                    <button onclick='deleteUser("<%= user._id %>")' class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
+                    <button onclick='deleteUser("<%= user._id %>")' class="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">
                       Delete
                     </button>
                   </td>
@@ -168,43 +168,43 @@
 
     <!-- Meal History Tab -->
     <div id="mealHistoryTab" class="tab-content hidden">
-      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <div class="flex gap-4 flex-wrap">
-          <select id="mealBatchFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+        <div class="flex gap-3 flex-wrap">
+          <select id="mealBatchFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
             <option value="all">All Batches</option>
             <% batches.forEach(batch => { %>
               <option value="<%= batch %>" <%= selectedBatch === batch ? 'selected' : '' %>><%= batch %></option>
             <% }) %>
           </select>
-          <select id="mealGenderFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <select id="mealGenderFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
             <option value="all">All Genders</option>
             <% genders.forEach(gender => { %>
               <option value="<%= gender %>" <%= selectedGender === gender ? 'selected' : '' %>><%= gender %></option>
             <% }) %>
           </select>
-          <input type="date" id="dateFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="<%= new Date().toISOString().split('T')[0] %>">
+          <input type="date" id="dateFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" value="<%= new Date().toISOString().split('T')[0] %>">
         </div>
-        <div class="flex gap-4">
-          <button onclick="fetchMealHistory()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+        <div class="flex gap-3">
+          <button onclick="fetchMealHistory()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150">
             Refresh Data
           </button>
-          <button onclick="downloadMealHistoryExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+          <button onclick="downloadMealHistoryExcel()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-150">
             Download as Excel
           </button>
         </div>
       </div>
-      <div id="mealHistoryContainer" class="overflow-x-auto bg-white shadow-lg rounded-lg">
+      <div id="mealHistoryContainer" class="overflow-x-auto bg-white shadow rounded-md">
         <table id="mealHistoryTable" class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-100">
+          <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Class Roll</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Meal</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Additional Items</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Lunch Served</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Dinner Served</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Daily Meal Count</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Total Meals</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Class Roll</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Meal</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Additional Items</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Lunch Served</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Dinner Served</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Daily Meal Count</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Meals</th>
             </tr>
           </thead>
           <tbody id="mealHistoryBody" class="bg-white divide-y divide-gray-200"></tbody>
@@ -214,20 +214,20 @@
 
     <!-- Staff Tab -->
     <div id="staffTab" class="tab-content hidden">
-      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <input type="text" id="staffSearch" placeholder="Search by name or email" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-full sm:w-auto">
-        <button onclick="openAddStaffModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+        <input type="text" id="staffSearch" placeholder="Search by name or email" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm w-full sm:w-auto">
+        <button onclick="openAddStaffModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150">
           Add Staff
         </button>
       </div>
-      <div id="staffContainer" class="overflow-x-auto bg-white shadow-lg rounded-lg">
+      <div id="staffContainer" class="overflow-x-auto bg-white shadow rounded-md">
         <table id="staffTable" class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-100">
+          <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Email</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody id="staffBody" class="bg-white divide-y divide-gray-200"></tbody>
@@ -237,26 +237,26 @@
 
     <!-- Deposits Tab -->
     <div id="depositsTab" class="tab-content hidden">
-      <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <select id="depositStatusFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+        <select id="depositStatusFilter" class="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
           <option value="all">All Statuses</option>
           <option value="Pending">Pending</option>
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
         </select>
-        <button onclick="fetchDeposits()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+        <button onclick="fetchDeposits()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150">
           Refresh Deposits
         </button>
       </div>
-      <div id="depositsContainer" class="overflow-x-auto bg-white shadow-lg rounded-lg">
+      <div id="depositsContainer" class="overflow-x-auto bg-white shadow rounded-md">
         <table id="depositsTable" class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-100">
+          <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">User</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Amount</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Request Date</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Request Date</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody id="depositsBody" class="bg-white divide-y divide-gray-200"></tbody>
@@ -267,27 +267,27 @@
     <!-- Add User Modal -->
     <div id="addUserModal" class="modal">
       <div class="modal-content">
-        <h2 class="text-xl font-bold mb-4">Add New User</h2>
-        <form id="addUserForm" class="space-y-4">
+        <h2 class="text-lg font-bold mb-4">Add New User</h2>
+        <form id="addUserForm" class="space-y-3">
           <div>
             <label for="addName" class="block text-sm font-medium text-gray-700">Name</label>
-            <input type="text" id="addName" name="name" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="text" id="addName" name="name" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <div>
             <label for="addClassRoll" class="block text-sm font-medium text-gray-700">Class Roll</label>
-            <input type="number" id="addClassRoll" name="classRoll" min="1" max="100" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="number" id="addClassRoll" name="classRoll" min="1" max="100" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <div>
             <label for="addEmail" class="block text-sm font-medium text-gray-700">Email</label>
-            <input type="email" id="addEmail" name="email" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="email" id="addEmail" name="email" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <div>
             <label for="addPassword" class="block text-sm font-medium text-gray-700">Password</label>
-            <input type="password" id="addPassword" name="password" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="password" id="addPassword" name="password" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <div>
             <label for="addGender" class="block text-sm font-medium text-gray-700">Gender</label>
-            <select id="addGender" name="gender" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <select id="addGender" name="gender" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
               <option value="">Select Gender</option>
               <% genders.forEach(gender => { %>
                 <option value="<%= gender %>"><%= gender %></option>
@@ -296,16 +296,16 @@
           </div>
           <div>
             <label for="addBatch" class="block text-sm font-medium text-gray-700">Batch</label>
-            <select id="addBatch" name="batch" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <select id="addBatch" name="batch" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
               <option value="">Select Batch</option>
               <% batches.forEach(batch => { %>
                 <option value="<%= batch %>"><%= batch %></option>
               <% }) %>
             </select>
           </div>
-          <div class="flex justify-end gap-4">
-            <button type="button" onclick="closeAddUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">Cancel</button>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">Add</button>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeAddUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md transition duration-150">Cancel</button>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">Add</button>
           </div>
         </form>
       </div>
@@ -314,20 +314,20 @@
     <!-- Edit User Modal -->
     <div id="editUserModal" class="modal">
       <div class="modal-content">
-        <h2 class="text-xl font-bold mb-4">Edit User: <span id="editUserName"></span></h2>
-        <form id="editUserForm" class="space-y-4">
+        <h2 class="text-lg font-bold mb-4">Edit User: <span id="editUserName"></span></h2>
+        <form id="editUserForm" class="space-y-3">
           <div>
             <label for="editDeposit" class="block text-sm font-medium text-gray-700">Deposit</label>
-            <input type="number" id="editDeposit" name="deposit" min="0" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="number" id="editDeposit" name="deposit" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <div>
             <label for="editTotalMealCount" class="block text-sm font-medium text-gray-700">Total Meal Count</label>
-            <input type="number" id="editTotalMealCount" name="totalMealCount" min="0" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="number" id="editTotalMealCount" name="totalMealCount" min="0" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <input type="hidden" id="editUserId" name="userId">
-          <div class="flex justify-end gap-4">
-            <button type="button" onclick="closeEditUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">Cancel</button>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">Save</button>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeEditUserModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md transition duration-150">Cancel</button>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">Save</button>
           </div>
         </form>
       </div>
@@ -336,23 +336,23 @@
     <!-- Add Staff Modal -->
     <div id="addStaffModal" class="modal">
       <div class="modal-content">
-        <h2 class="text-xl font-bold mb-4">Add New Staff</h2>
-        <form id="addStaffForm" class="space-y-4">
+        <h2 class="text-lg font-bold mb-4">Add New Staff</h2>
+        <form id="addStaffForm" class="space-y-3">
           <div>
             <label for="addStaffName" class="block text-sm font-medium text-gray-700">Name</label>
-            <input type="text" id="addStaffName" name="name" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="text" id="addStaffName" name="name" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <div>
             <label for="addStaffEmail" class="block text-sm font-medium text-gray-700">Email</label>
-            <input type="email" id="addStaffEmail" name="email" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="email" id="addStaffEmail" name="email" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
           <div>
             <label for="addStaffPassword" class="block text-sm font-medium text-gray-700">Password</label>
-            <input type="password" id="addStaffPassword" name="password" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <input type="password" id="addStaffPassword" name="password" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required>
           </div>
-          <div class="flex justify-end gap-4">
-            <button type="button" onclick="closeAddStaffModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">Cancel</button>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">Add</button>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeAddStaffModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md transition duration-150">Cancel</button>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">Add</button>
           </div>
         </form>
       </div>
@@ -366,13 +366,8 @@
         const toggleButton = document.getElementById('toggleMenu');
         const isOpen = menu.classList.toggle('active');
         toggleButton.setAttribute('aria-expanded', isOpen);
-        if (isOpen) {
-          document.body.style.overflow = 'hidden';
-          backdrop.style.display = 'block';
-        } else {
-          document.body.style.overflow = 'auto';
-          backdrop.style.display = 'none';
-        }
+        backdrop.style.display = isOpen ? 'block' : 'none';
+        document.body.style.overflow = isOpen ? 'hidden' : 'auto';
       };
 
       document.getElementById('toggleMenu').addEventListener('click', toggleMenu);
@@ -427,11 +422,11 @@
             renderMealHistoryTable(data);
           } else {
             alert(data.error || 'Failed to fetch meal history.');
-            document.getElementById('mealHistoryBody').innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-600">No data found.</td></tr>';
+            document.getElementById('mealHistoryBody').innerHTML = '<tr><td colspan="8" class="px-4 py-3 text-center text-sm text-red-600">No data found.</td></tr>';
           }
         } catch (err) {
           alert('Error fetching meal history.');
-          document.getElementById('mealHistoryBody').innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-600">Error loading data.</td></tr>';
+          document.getElementById('mealHistoryBody').innerHTML = '<tr><td colspan="8" class="px-4 py-3 text-center text-sm text-red-600">Error loading data.</td></tr>';
         }
       }
 
@@ -443,37 +438,37 @@
           const row = document.createElement('tr');
           row.className = 'hover:bg-gray-50';
           row.innerHTML = `
-            <td class="px-6 py-4 text-sm text-gray-900">${user.classRoll}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${user.name}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${user.meal}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${user.additionalItems || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${user.lunchServed ? 'Yes' : 'No'}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${user.dinnerServed ? 'Yes' : 'No'}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${user.dailyMealCount}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${user.totalMealCount}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.classRoll}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.name}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.meal}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.additionalItems || '-'}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.lunchServed ? 'Yes' : 'No'}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.dinnerServed ? 'Yes' : 'No'}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.dailyMealCount}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${user.totalMealCount}</td>
           `;
           tbody.appendChild(row);
         });
         const totalRow = document.createElement('tr');
-        totalRow.className = 'bg-gray-100 font-semibold';
+        totalRow.className = 'bg-gray-50 font-medium';
         totalRow.innerHTML = `
-          <td class="px-6 py-4 text-sm text-gray-900">Total (Cumulative)</td>
+          <td class="px-4 py-3 text-sm text-gray-900">Total (Cumulative)</td>
           <td colspan="6"></td>
-          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.totalMeals}</td>
+          <td class="px-4 py-3 text-sm text-gray-900">${data.totals.totalMeals}</td>
         `;
         tbody.appendChild(totalRow);
         const summaryRow = document.createElement('tr');
-        summaryRow.className = 'bg-gray-100 font-semibold';
+        summaryRow.className = 'bg-gray-50 font-medium';
         summaryRow.innerHTML = `
-          <td class="px-6 py-4 text-sm text-gray-900">Summary (${data.date})</td>
+          <td class="px-4 py-3 text-sm text-gray-900">Summary (${data.date})</td>
           <td colspan="2"></td>
-          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.additionalItems}</td>
-          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.lunchServed}</td>
-          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.dinnerServed}</td>
-          <td class="px-6 py-4 text-sm text-gray-900">${data.totals.dailyMealCount}</td>
+          <td class="px-4 py-3 text-sm text-gray-900">${data.totals.additionalItems}</td>
+          <td class="px-4 py-3 text-sm text-gray-900">${data.totals.lunchServed}</td>
+          <td class="px-4 py-3 text-sm text-gray-900">${data.totals.dinnerServed}</td>
+          <td class="px-4 py-3 text-sm text-gray-900">${data.totals.dailyMealCount}</td>
           <td></td>
         `;
-        tbody.appendChild(totalRow);
+        tbody.appendChild(summaryRow);
       }
 
       // Download Meal History Excel
@@ -587,11 +582,11 @@
             renderStaffTable(filteredStaff);
           } else {
             alert(data.error || 'Failed to fetch staff.');
-            document.getElementById('staffBody').innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-600">No data found.</td></tr>';
+            document.getElementById('staffBody').innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-sm text-red-600">No data found.</td></tr>';
           }
         } catch (err) {
           alert('Error fetching staff.');
-          document.getElementById('staffBody').innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-red-600">Error loading data.</td></tr>';
+          document.getElementById('staffBody').innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-sm text-red-600">Error loading data.</td></tr>';
         }
       }
 
@@ -603,14 +598,14 @@
           const row = document.createElement('tr');
           row.className = 'hover:bg-gray-50';
           row.innerHTML = `
-            <td class="px-6 py-4 text-sm text-gray-900">${s.name || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${s.email}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${s.isActive ? 'Active' : 'Inactive'}</td>
-            <td class="px-6 py-4 text-sm flex gap-2">
-              <button onclick="toggleStaffStatus('${s._id}', ${s.isActive})" class="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
+            <td class="px-4 py-3 text-sm text-gray-900">${s.name || '-'}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${s.email}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${s.isActive ? 'Active' : 'Inactive'}</td>
+            <td class="px-4 py-3 text-sm flex gap-2">
+              <button onclick="toggleStaffStatus('${s._id}', ${s.isActive})" class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">
                 ${s.isActive ? 'Deactivate' : 'Activate'}
               </button>
-              <button onclick="deleteStaff('${s._id}')" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">
+              <button onclick="deleteStaff('${s._id}')" class="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">
                 Delete
               </button>
             </td>
@@ -695,11 +690,11 @@
             renderDepositsTable(filteredDeposits);
           } else {
             alert(data.error || 'Failed to fetch deposits.');
-            document.getElementById('depositsBody').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-600">No data found.</td></tr>';
+            document.getElementById('depositsBody').innerHTML = '<tr><td colspan="5" class="px-4 py-3 text-center text-sm text-red-600">No data found.</td></tr>';
           }
         } catch (err) {
           alert('Error fetching deposits.');
-          document.getElementById('depositsBody').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-red-600">Error loading data.</td></tr>';
+          document.getElementById('depositsBody').innerHTML = '<tr><td colspan="5" class="px-4 py-3 text-center text-sm text-red-600">Error loading data.</td></tr>';
         }
       }
 
@@ -711,14 +706,14 @@
           const row = document.createElement('tr');
           row.className = 'hover:bg-gray-50';
           row.innerHTML = `
-            <td class="px-6 py-4 text-sm text-gray-900">${deposit.userId.name} (Roll: ${deposit.userId.classRoll})</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${deposit.amount}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${deposit.status}</td>
-            <td class="px-6 py-4 text-sm text-gray-900">${new Date(deposit.requestDate).toLocaleDateString('en-GB')}</td>
-            <td class="px-6 py-4 text-sm flex gap-2">
+            <td class="px-4 py-3 text-sm text-gray-900">${deposit.userId.name} (Roll: ${deposit.userId.classRoll})</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${deposit.amount}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${deposit.status}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${new Date(deposit.requestDate).toLocaleDateString('en-GB')}</td>
+            <td class="px-4 py-3 text-sm flex gap-2">
               ${deposit.status === 'Pending' ? `
-                <button onclick="approveDeposit('${deposit._id}')" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">Approve</button>
-                <button onclick="rejectDeposit('${deposit._id}')" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-lg transition duration-200">Reject</button>
+                <button onclick="approveDeposit('${deposit._id}')" class="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">Approve</button>
+                <button onclick="rejectDeposit('${deposit._id}')" class="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition duration-150">Reject</button>
               ` : ''}
             </td>
           `;
